@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FMM Tactical Mastermind</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<!-- ─── TOP NAV ─────────────────────────────────────────────────────────── -->
+<header class="topbar">
+  <div class="topbar-brand">
+    <span class="brand-icon">⚽</span>
+    <span class="brand-title">FMM <em>Tactical Mastermind</em></span>
+  </div>
+  <nav class="topbar-tabs">
+    <button class="tab-btn active" data-tab="pitch">Tactical Pitch</button>
+    <button class="tab-btn" data-tab="squad">Squad</button>
+    <button class="tab-btn" data-tab="market">Market</button>
+    <button class="tab-btn" data-tab="scout">Scout &amp; Compare</button>
+  </nav>
+  <!-- Benchmark widget — visible on all tabs -->
+  <div class="benchmark-bar" id="benchmark-bar">
+    <span class="benchmark-label">Quality</span>
+    <button id="btn-benchmark-auto" class="benchmark-auto-btn auto-on">AUTO</button>
+    <button id="btn-benchmark-dec" class="benchmark-adj-btn">−</button>
+    <div class="benchmark-val-wrap">
+      <span id="benchmark-value" class="benchmark-val">60%</span>
+    </div>
+    <button id="btn-benchmark-inc" class="benchmark-adj-btn">+</button>
+  </div>
+
+  <div class="topbar-actions">
+    <button class="btn-ghost" id="btn-save-tactic">Save Tactic</button>
+    <button class="btn-ghost" id="btn-load-tactic">Load Tactic</button>
+  </div>
+</header>
+
+<!-- ─── MAIN LAYOUT ─────────────────────────────────────────────────────── -->
+<main class="app-shell">
+
+  <!-- ══════════════════════════════════════════════════════════════════════
+       TAB: TACTICAL PITCH
+  ══════════════════════════════════════════════════════════════════════ -->
+  <section class="tab-panel active" id="tab-pitch">
+
+    <!-- LEFT SIDEBAR: Formation & Weights -->
+    <aside class="sidebar sidebar-left glass">
+      <div class="sidebar-section">
+        <div class="sidebar-title-row">
+          <h3 class="sidebar-title">Attribute Weights</h3>
+          <button class="btn-ghost btn-xs" id="btn-weights-default">Default</button>
+        </div>
+        <p class="sidebar-hint">Click a weight to cycle through tiers</p>
+        <div id="weight-controls" class="weight-list"></div>
+      </div>
+
+      <div class="sidebar-section">
+        <h3 class="sidebar-title">Active Node</h3>
+        <div id="active-node-info" class="active-node-panel">
+          <p class="muted">Click a node on the pitch to configure it.</p>
+        </div>
+      </div>
+    </aside>
+
+    <!-- CENTER: Interactive Pitch -->
+    <div class="pitch-container">
+      <div class="pitch-wrap">
+        <div class="pitch" id="pitch">
+          <!-- Pitch markings (SVG overlay) -->
+          <svg class="pitch-svg" viewBox="0 0 400 600" preserveAspectRatio="none">
+            <!-- Outer border -->
+            <rect x="2" y="2" width="396" height="596" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="2"/>
+            <!-- Centre line -->
+            <line x1="2" y1="300" x2="398" y2="300" stroke="rgba(255,255,255,0.12)" stroke-width="1.5"/>
+            <!-- Centre circle -->
+            <circle cx="200" cy="300" r="60" fill="none" stroke="rgba(255,255,255,0.12)" stroke-width="1.5"/>
+            <circle cx="200" cy="300" r="3" fill="rgba(255,255,255,0.3)"/>
+            <!-- Penalty areas -->
+            <rect x="90" y="2" width="220" height="100" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+            <rect x="90" y="498" width="220" height="100" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+            <!-- Goal areas -->
+            <rect x="145" y="2" width="110" height="40" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+            <rect x="145" y="558" width="110" height="40" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+            <!-- Penalty spots -->
+            <circle cx="200" cy="80" r="3" fill="rgba(255,255,255,0.2)"/>
+            <circle cx="200" cy="520" r="3" fill="rgba(255,255,255,0.2)"/>
+            <!-- Corner arcs -->
+            <path d="M 2 2 Q 14 2 14 14" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+            <path d="M 398 2 Q 386 2 386 14" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+            <path d="M 2 598 Q 14 598 14 586" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+            <path d="M 398 598 Q 386 598 386 586" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+          </svg>
+
+          <!-- Player nodes injected by JS -->
+          <div id="pitch-nodes"></div>
+
+          <!-- Drop ghost -->
+          <div id="drop-ghost" class="drop-ghost hidden"></div>
+        </div>
+      </div>
+
+      <!-- Bench — top available players with best formation roles -->
+      <div class="bench-bar" id="bench-bar">
+        <div id="bench-slots" class="bench-slots"></div>
+      </div>
+    </div>
+
+    <!-- RIGHT SIDEBAR: dual-mode (roster / position players) -->
+    <aside class="sidebar sidebar-right glass">
+
+      <!-- MODE A: node selected — players for this position -->
+      <div id="sidebar-position-panel" class="hidden">
+        <div class="sidebar-section">
+          <div class="sidebar-title-row">
+            <div>
+              <h3 class="sidebar-title" id="sidebar-pos-zone">Position</h3>
+              <div class="sidebar-hint" id="sidebar-pos-role">—</div>
+            </div>
+            <button class="btn-ghost btn-xs" id="btn-deselect-node">✕</button>
+          </div>
+        </div>
+        <div id="position-player-list" class="squad-list"></div>
+      </div>
+
+      <!-- MODE B: default — full squad roster -->
+      <div id="sidebar-roster-panel">
+        <div class="sidebar-section">
+          <h3 class="sidebar-title">Squad Roster</h3>
+          <input type="text" id="squad-search" class="fmm-input" placeholder="Search player…" />
+        </div>
+        <div id="squad-roster" class="squad-list"></div>
+        <div class="sidebar-section mt-8">
+          <button class="btn-accent w-full" id="btn-add-player-pitch">+ Add New Player</button>
+        </div>
+      </div>
+
+    </aside>
+
+  </section>
+
+
+  <!-- ══════════════════════════════════════════════════════════════════════
+       TAB: SQUAD
+  ══════════════════════════════════════════════════════════════════════ -->
+  <section class="tab-panel" id="tab-squad">
+    <div class="squad-page glass">
+      <div class="squad-page-header">
+        <div class="squad-header-left">
+          <h2>Squad Manager</h2>
+          <div class="squad-bench-info">
+            <span class="squad-bench-label">Media rosa:</span>
+            <span class="squad-bench-val" id="squad-bench-val">—</span>
+            <span id="squad-bench-stars"></span>
+            <span class="squad-bench-count" id="squad-bench-count"></span>
+          </div>
+        </div>
+        <button class="btn-accent" id="btn-add-player-squad">+ Add Player</button>
+      </div>
+      <div class="squad-filters">
+        <input type="text" id="squad-filter-name" class="fmm-input" placeholder="Filter by name…" />
+        <select id="squad-filter-pos" class="fmm-select">
+          <option value="">All Positions</option>
+          <option value="GK">Goalkeeper</option>
+          <option value="DEF">Defender</option>
+          <option value="MID">Midfielder</option>
+          <option value="ATT">Attacker</option>
+        </select>
+      </div>
+      <div id="squad-table-container">
+        <table class="squad-table" id="squad-table">
+          <thead>
+            <tr id="squad-thead-row">
+              <th class="th-sort" data-sort="name">Name <span class="sort-ind"></span></th>
+              <th class="th-sort" data-sort="age">Age <span class="sort-ind"></span></th>
+              <th class="th-sort" data-sort="pos">Positions <span class="sort-ind"></span></th>
+              <th class="th-sort" data-sort="role">Best Role <span class="sort-ind"></span></th>
+              <th class="th-sort" data-sort="score">Score <span class="sort-ind"></span></th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="squad-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ══════════════════════════════════════════════════════════════════════
+       TAB: MARKET
+  ══════════════════════════════════════════════════════════════════════ -->
+  <section class="tab-panel" id="tab-market">
+    <div class="market-shell">
+
+      <!-- LEFT: Priority -->
+      <div class="market-col glass">
+        <div class="market-col-header">
+          <div>
+            <h2 class="market-col-title">Priorità di Mercato</h2>
+            <p class="market-col-hint">Slot scoperti o coperti in emergenza</p>
+          </div>
+          <span class="market-count" id="market-priority-count">0</span>
+        </div>
+        <div class="market-priority-list" id="market-priority-list">
+          <p class="market-empty muted">Nessuna priorità rilevata.<br>Assegna i giocatori agli slot in campo.</p>
+        </div>
+      </div>
+
+      <!-- RIGHT: Coverage -->
+      <div class="market-col glass">
+        <div class="market-col-header">
+          <div>
+            <h2 class="market-col-title">Stato di Copertura</h2>
+            <p class="market-col-hint">Titolari e migliori riserve per ruolo</p>
+          </div>
+          <span class="market-count" id="market-coverage-count">0</span>
+        </div>
+        <div class="market-coverage-list" id="market-coverage-list">
+          <p class="market-empty muted">Nessun ruolo configurato.<br>Seleziona un ruolo per ogni nodo in campo.</p>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+
+
+  <!-- ══════════════════════════════════════════════════════════════════════
+       TAB: SCOUT & COMPARE
+  ══════════════════════════════════════════════════════════════════════ -->
+  <section class="tab-panel" id="tab-scout">
+    <div class="scout-shell">
+
+      <!-- LEFT: Target list -->
+      <div class="scout-col-left glass">
+        <div class="scout-col-header">
+          <div>
+            <h2 class="scout-col-title">Obiettivi di Mercato</h2>
+            <p class="scout-col-hint">Giocatori monitorati per acquisto</p>
+          </div>
+          <div class="scout-header-right">
+            <span class="scout-count" id="scout-target-count">0</span>
+            <button class="btn-accent btn-sm" id="btn-add-scout-target">+ Aggiungi</button>
+          </div>
+        </div>
+        <div id="scout-target-list" class="scout-target-list">
+          <p class="muted scout-empty">Nessun obiettivo monitorato.<br>Aggiungi un giocatore con status "Obiettivo Mercato".</p>
+        </div>
+      </div>
+
+      <!-- RIGHT: Comparison panel -->
+      <div class="scout-col-right glass">
+        <div class="scout-placeholder" id="scout-placeholder">
+          <div class="scout-placeholder-icon">🔍</div>
+          <p>Seleziona un obiettivo per visualizzare il confronto tattico</p>
+        </div>
+        <div id="scout-comparison-content" class="hidden"></div>
+      </div>
+
+    </div>
+  </section>
+
+
+</main>
+
+
+<!-- ─── PLAYER FORM MODAL ───────────────────────────────────────────────── -->
+<div class="modal-overlay hidden" id="modal-overlay">
+  <div class="modal glass" id="player-modal">
+    <div class="modal-header">
+      <h2 id="modal-title">Add Player</h2>
+      <button class="modal-close" id="modal-close">&times;</button>
+    </div>
+
+    <div class="modal-body modal-body-split">
+
+      <!-- LEFT: basic info + type toggle + attributes -->
+      <div class="modal-left">
+        <div class="form-row form-row-basic">
+          <div class="form-group">
+            <label>Name</label>
+            <input type="text" id="f-name" class="fmm-input" placeholder="Player name" />
+          </div>
+          <div class="form-group form-group-sm">
+            <label>Age</label>
+            <input type="number" id="f-age" class="fmm-input" placeholder="21" min="15" max="45" />
+          </div>
+          <div class="form-group form-group-sm">
+            <label>Nationality</label>
+            <input type="text" id="f-nationality" class="fmm-input" placeholder="Brazilian" />
+          </div>
+          <div class="form-group form-group-sm">
+            <label>Value</label>
+            <input type="text" id="f-value" class="fmm-input" placeholder="€48.5M" />
+          </div>
+          <div class="form-group form-group-sm">
+            <label>Wage</label>
+            <input type="text" id="f-wage" class="fmm-input" placeholder="€71K" />
+          </div>
+          <div class="form-group form-group-sm">
+            <label>Status</label>
+            <select id="f-status" class="fmm-select">
+              <option value="squad">In Squadra</option>
+              <option value="scout">Obiettivo Mercato</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="type-toggle" id="type-toggle">
+            <button class="type-btn active" data-type="outfield">Outfield</button>
+            <button class="type-btn" data-type="goalkeeper">Goalkeeper</button>
+          </div>
+        </div>
+
+        <div class="attrs-panel">
+          <div class="attrs-col">
+            <h4 class="attrs-group-title" id="attrs-col1-title">Technical</h4>
+            <div id="attrs-col1" class="attrs-inputs"></div>
+          </div>
+          <div class="attrs-col">
+            <h4 class="attrs-group-title">Mental</h4>
+            <div id="attrs-col2" class="attrs-inputs"></div>
+          </div>
+          <div class="attrs-col">
+            <h4 class="attrs-group-title">Physical</h4>
+            <div id="attrs-col3" class="attrs-inputs"></div>
+          </div>
+        </div>
+
+        <div id="modal-role-suggestions" class="modal-role-suggestions"></div>
+      </div>
+
+      <!-- RIGHT: mini pitch + feet -->
+      <div class="modal-right">
+        <div class="mini-pitch-panel">
+          <h4 class="attrs-group-title">Position Familiarity</h4>
+          <div class="mini-pitch" id="mini-pitch"></div>
+        </div>
+
+        <div class="feet-panel">
+          <h4 class="attrs-group-title">Preferred Foot</h4>
+          <div class="feet-circles">
+            <div class="foot-item">
+              <div class="foot-circle" id="foot-L" data-foot="L" data-level="0">L</div>
+              <span class="foot-label">Left</span>
+              <span class="foot-level-label" id="foot-L-label">—</span>
+            </div>
+            <div class="foot-item">
+              <div class="foot-circle" id="foot-R" data-foot="R" data-level="0">R</div>
+              <span class="foot-label">Right</span>
+              <span class="foot-level-label" id="foot-R-label">—</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn-ghost" id="btn-modal-cancel">Cancel</button>
+      <button class="btn-danger hidden" id="btn-modal-unassign">Remove from Pitch</button>
+      <button class="btn-accent" id="btn-modal-save">Save Player</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ─── ROLE SELECTOR POPOVER ───────────────────────────────────────────── -->
+<div class="role-popover hidden" id="role-popover">
+  <div class="role-popover-header">
+    <span id="role-popover-title">Select Role</span>
+    <button class="popover-close" id="role-popover-close">&times;</button>
+  </div>
+  <div id="role-popover-list" class="role-list"></div>
+  <div class="role-popover-footer">
+    <button class="btn-accent btn-sm" id="btn-assign-player">Assign Player</button>
+  </div>
+</div>
+
+
+<!-- ─── PLAYER ASSIGN POPOVER ───────────────────────────────────────────── -->
+<div class="assign-popover hidden" id="assign-popover">
+  <div class="role-popover-header">
+    <span>Assign Player</span>
+    <button class="popover-close" id="assign-popover-close">&times;</button>
+  </div>
+  <div id="assign-player-list" class="assign-list"></div>
+</div>
+
+
+<!-- ─── SCRIPTS ─────────────────────────────────────────────────────────── -->
+<script src="app.js"></script>
+</body>
+</html>
