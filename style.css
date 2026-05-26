@@ -935,14 +935,17 @@ html, body {
 }
 
 .bench-name {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
-  color: var(--text-secondary);
+  color: var(--text-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  min-width: 0;
-  flex: 1;
+  width: 100%;
+}
+
+.bench-stars {
+  line-height: 1;
 }
 
 .bench-roles {
@@ -2455,7 +2458,7 @@ html, body {
 /* Size variants by context */
 .ppi-score .star-rating  { font-size: 11px; }
 .ani-score-row .star-rating { font-size: 13px; }
-.bench-name-row .star-rating { font-size: 9px; }
+.bench-stars .star-rating { font-size: 9px; }
 .td-role-stars .star-rating  { font-size: 12px; }
 
 /* Active Node Info score row */
@@ -2476,13 +2479,6 @@ html, body {
   color: var(--text-muted);
 }
 
-/* Bench bar name row */
-.bench-name-row {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  overflow: hidden;
-}
 
 /* Squad table role+stars cell */
 .td-role-stars {

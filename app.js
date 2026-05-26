@@ -1247,10 +1247,8 @@ function renderBench() {
     const bestScore = top[0]?.score ?? null;
     const benchStars = bestScore !== null ? getStarsForPlayer(bestScore, state.targetBenchmark) : null;
     slot.innerHTML = `
-      <div class="bench-name-row">
-        <span class="bench-name">${player.name}</span>
-        ${benchStars !== null ? renderStarsHTML(benchStars) : ''}
-      </div>
+      <span class="bench-name">${player.name}</span>
+      ${benchStars !== null ? `<div class="bench-stars">${renderStarsHTML(benchStars)}</div>` : ''}
       <div class="bench-roles">${rolesHTML || '<span class="muted">—</span>'}</div>`;
 
     slot.addEventListener('click', () => openModal(player.id));
