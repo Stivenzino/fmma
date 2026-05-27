@@ -340,6 +340,7 @@ function loadState() {
     if (data.autoMode        !== undefined) state.autoMode         = data.autoMode;
     if (data.targetBenchmark !== undefined) state.targetBenchmark  = data.targetBenchmark <= 20 ? data.targetBenchmark * 5 : data.targetBenchmark;
     if (data.youthAgeLimit   !== undefined) state.youthAgeLimit    = data.youthAgeLimit;
+    cleanOrphanPlan(state.nodes.map(n => n.id));
     return true;
   } catch (_) { return false; }
 }
@@ -2058,9 +2059,12 @@ function loadTactic() {
         buildWeightControls();
         recomputeAutoTarget();
         updateBenchmarkUI();
+        cleanOrphanPlan(state.nodes.map(n => n.id));
+        _spSelectedNodeId = null;
         renderNodes();
         renderSquadRoster();
         renderSquadTable();
+        renderSquadPlan();
         renderScoutTab();
         maybeRenderMarket();
         renderFormationOverview();
@@ -2407,6 +2411,18 @@ function renderScoutTab() {
     card.addEventListener('dblclick', () => openModal(target.id));
     list.appendChild(card);
   });
+
+  if (!isPlanConfigured()) {
+    document.getElementById('scout-placeholder')?.classList.remove('hidden');
+    document.getElementById('scout-comparison-content')?.classList.add('hidden');
+    document.getElementById('scout-placeholder').innerHTML =
+      `<div class="scout-noplan-msg">
+        <div class="scout-noplan-icon">📋</div>
+        <p><strong>Squad Plan not configured</strong></p>
+        <p class="muted">Set up starters in <strong>Squad Plan</strong> first.<br>Scout verdicts depend on your tactical lineup.</p>
+       </div>`;
+    return;
+  }
 
   if (_selectedScoutId !== null) {
     const target = targets.find(p => p.id === _selectedScoutId);

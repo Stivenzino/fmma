@@ -2,6 +2,14 @@
 
 ## 1. Modifiche Effettuate (Cronologia recente)
 
+* **2026-05-27 — Fix 3 bug: Scout senza plan, loadTactic mancante renderSquadPlan, orphan plan**
+  * **File modificati:** `app.js`
+  * **Cosa è stato fatto:**
+    1. `renderScoutTab`: se plan non configurato mostra messaggio orientativo (come Market) invece di produrre verdetti incorretti.
+    2. `loadTactic`: aggiunto `cleanOrphanPlan` + `renderSquadPlan` + reset `_spSelectedNodeId` dopo import.
+    3. `loadState`: aggiunto `cleanOrphanPlan` al restore da localStorage — elimina entries plan con node id non più esistenti.
+  * **Implicazioni:** `cleanOrphanPlan` è una function declaration → hoisted, chiamabile da `loadState` senza spostare la definizione.
+
 * **2026-05-27 — Fix critici post-analisi (4 issue)**
   * **File modificati:** `app.js`, `index.html`, `style.css`
   * **Cosa è stato fatto:**
