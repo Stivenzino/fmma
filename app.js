@@ -2812,8 +2812,12 @@ function openSpPopover(nodeId, tier, anchorEl) {
   const tierMeta = SP_TIERS.find(t => t.key === tier);
   title.textContent = `${tierMeta?.label || tier} — ${node.role}`;
 
+  const zoneKey = getZoneKey(node.x, node.y);
+
   const candidates = state.squad
-    .filter(p => !p.isScoutTarget && isCompatible(p, node.role))
+    .filter(p => !p.isScoutTarget
+      && isCompatible(p, node.role)
+      && getPlayerFamLevel(p, zoneKey, node.x) >= 1)
     .map(p => ({
       player: p,
       score:  rawRoleScore(p, node.role),
