@@ -995,8 +995,11 @@ function openAssignPopover(node) {
   const list = document.getElementById('assign-player-list');
   list.innerHTML = '';
 
+  const zoneKey = getZoneKey(node.x, node.y);
   const scored = state.squad
-    .filter(p => !p.isScoutTarget && isCompatible(p, node.role))
+    .filter(p => !p.isScoutTarget
+      && isCompatible(p, node.role)
+      && getPlayerFamLevel(p, zoneKey, node.x) >= 1)
     .map(p => ({ player:p, score: scorePlayerForNode(p, node) }))
     .filter(({score}) => score > 0)
     .sort((a,b) => b.score - a.score);
@@ -2443,7 +2446,7 @@ function renderScoutComparison(target) {
     }).join('');
     nodeSelectorHTML = `
       <div class="scout-section">
-        <span class="scout-section-label">Role analysed</span>
+        <span class="scout-section-label">Analyzed role</span>
         <select id="scout-node-select" class="fmm-select">${opts}</select>
       </div>`;
   } else if (compatibleOpts.length === 1) {
@@ -2451,7 +2454,7 @@ function renderScoutComparison(target) {
     const zone = ZONE_ROLES[getZoneKey(o.node.x, o.node.y)]?.label || o.node.role;
     nodeSelectorHTML = `
       <div class="scout-section">
-        <span class="scout-section-label">Role analysed</span>
+        <span class="scout-section-label">Analyzed role</span>
         <div class="fmm-input" style="opacity:0.7">${o.node.role} (${zone}) — ${o.score}%</div>
       </div>`;
   }
@@ -2638,7 +2641,7 @@ function attrGroupAvg(player, group) {
 const SP_TIERS = [
   { key: 'starter', label: 'Starter',  max: 1,    color: '#39ff14' },
   { key: 'bench',   label: 'Bench',    max: null, color: '#00e5ff' },
-  { key: 'third',   label: '3rd Tier', max: null, color: '#ffdf00' },
+  { key: 'third',   label: 'Third Choice', max: null, color: '#ffdf00' },
   { key: 'youth',   label: 'Youth',    max: null, color: '#ff9500' },
 ];
 
@@ -2688,18 +2691,18 @@ function canAssignToTier(nodeId, tier, playerId) {
   // Already in this exact slot
   if (playerTierOnNode(nodeId, playerId) === tier) return 'Player already in this tier.';
   // Already in another tier of this same node
-  if (playerTierOnNode(nodeId, playerId) !== null)  return 'Already assigned to another tier for this role.';
+  if (playerTierOnNode(nodeId, playerId) !== null)  return 'Already assigned in another tier of this role.';
   // Starter anywhere → locked to that node only
   const starterNode = findPlayerAsStarter(playerId);
   if (starterNode !== null) {
     const node = state.nodes.find(n => n.id === starterNode);
-    return `Starter for ${node?.role || 'another role'}. Remove first.`;
+    return `Starter of ${node?.role || 'another role'}. Remove them first.`;
   }
   // Youth tier age gate: U23 only (soft block — visible but not clickable)
   if (tier === 'youth') {
     const player = state.squad.find(p => p.id === playerId);
     if (player?.age && player.age > 23) {
-      return `Over 23 — not eligible for Youth tier`;
+      return 'Over 23 years old (Not eligible for Youth).';
     }
   }
   // Trying to add as starter but player is already bench/third/youth elsewhere — allowed
@@ -2855,7 +2858,7 @@ function renderSpPanel(node) {
         if (t.key === 'starter' && starterSlotFull) {
           disabled = true; disabledReason = 'Starter slot full';
         } else if (overAgeForYouth(t)) {
-          disabled = true; disabledReason = 'Over 23 — Youth tier is U23 only';
+          disabled = true; disabledReason = 'not eligible (over 23 years old)';
         }
         return `<button class="sp-tier-btn${disabled ? ' sp-tier-btn--disabled' : ''}"
           data-tier="${t.key}" data-pid="${player.id}"

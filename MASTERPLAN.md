@@ -329,6 +329,20 @@
     - CSS: aggiunte classi `.sp-candidates-list`, `.sp-candidate-row`, `.sp-cand--*` (varianti colore per tier), `.sp-cand-fam`, `.sp-cand-info/name/meta/score/actions`, `.sp-tier-btns`, `.sp-tier-btn`, `.sp-assigned-badge`, `.sp-candidate-remove`, `.sp-candidate-blocked`.
   * **Implicazioni:** La familiarità ora influenza tutti i calcoli (Squad Plan, Market urgency, benchmark). Un giocatore Awkward in un ruolo mostrerà uno score molto ridotto rispetto a Natural, in tutte le viste.
 
+* **2026-05-27 — Squad Plan UX polish + full English pass (automated prompt batch)**
+  * **File modificati:** `app.js`, `style.css`, `index.html`
+  * **Cosa è stato fatto:**
+    - `SP_TIERS`: label `'3rd Tier'` → `'Third Choice'`
+    - `renderSpPanel`: tooltip Youth disabled → `'not eligible (over 23 years old)'`
+    - `renderScoutComparison`: `'Role analysed'` → `'Analyzed role'` (2 occorrenze)
+    - `openAssignPopover`: aggiunto filtro `getPlayerFamLevel(p, zoneKey, node.x) >= 1` per escludere giocatori senza familiarità (1C)
+    - `canAssignToTier`: messaggi rewording in inglese
+    - CSS 2A: `.sp-cand-actions` → `justify-content: flex-end; width: 132px` (rimosso flex-shrink)
+    - CSS 2B: `.sp-tier-btns` width 122px→132px; `.sp-tier-btn` padding 4px 6px→3px 4px, height 26px→24px, font-size 10px→9.5px
+    - CSS 2C: `.sp-legend-chip` da pill a dot indicator con `::before` pseudo-element (8px cerchio colorato)
+    - HTML 3A: pitch header `'Formazione'`→`'Formation'`, hint tradotto in inglese
+  * **Implicazioni:** Tutti i calcoli usano familiarity lato-specifica. UI completamente in inglese. Legend chip più leggibile.
+
 ## 2. In Corso / Da Fare Immediatamente
 
 * [ ] Test funzionale end-to-end
