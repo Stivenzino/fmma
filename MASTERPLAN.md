@@ -2,6 +2,15 @@
 
 ## 1. Modifiche Effettuate (Cronologia recente)
 
+* **2026-05-27 — Fix critici post-analisi (4 issue)**
+  * **File modificati:** `app.js`, `index.html`, `style.css`
+  * **Cosa è stato fatto:**
+    1. **saveTactic missing plan (bug):** Aggiunto `plan`, `youthAgeLimit`, `version: 2` all'export JSON. `loadTactic` ora ripristina `plan` e `youthAgeLimit`. File v1 (senza version) sono compatibili — plan viene ignorato/svuotato invece di crash.
+    2. **Poacher vs Advanced Forward distinti:** Poacher: key=[Shooting, Movement, Pace], imp=[Technique, Aerial, Strength], sec=[Decisions, Dribbling, Teamwork]. Advanced Forward: key=[Shooting, Technique, Dribbling], imp=[Movement, Decisions, Pace], sec=[Passing, Strength, Teamwork]. Il Poacher pesa aereo/fisico, l'AF tecnica/dribbling.
+    3. **Scout default nodo più urgente:** Aggiunta `defaultScoutNodeId(compatibleOpts)` che pre-seleziona il nodo con urgency più alta (HIGH>MED>LOW), score come tiebreaker. Usata in `renderScoutComparison` e `renderScoutAnalysisBody` al posto di `compatibleOpts[0]`.
+    4. **Youth age threshold configurabile:** `state.youthAgeLimit = 23` (default). Persiste in localStorage e file export. Controllo `±` nel header del pitch Squad Plan (range 16–30). Tutti i `> 23` hardcoded sostituiti con `> state.youthAgeLimit`.
+  * **Implicazioni:** `getEffectiveFamLevel` con MAX non esisteva nel codice — già corretto in precedenza. Nessuna regressione su altri tab.
+
 * **2026-05-27 — Scout verdict dinamico relativo al benchmark di categoria**
   * **File modificati:** `app.js`
   * **Cosa è stato fatto:**

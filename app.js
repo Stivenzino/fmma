@@ -208,13 +208,13 @@ const ROLE_ATTRS = {
   /* ── FORWARDS ─────────────────────────────────────────────────────────── */
   'Poacher': {
     key: ['Shooting', 'Movement', 'Pace'],
-    imp: ['Decisions', 'Technique', 'Dribbling'],
-    sec: ['Strength', 'Aerial', 'Teamwork'],
+    imp: ['Technique', 'Aerial', 'Strength'],
+    sec: ['Decisions', 'Dribbling', 'Teamwork'],
   },
   'Advanced Forward': {
-    key: ['Shooting', 'Movement', 'Pace'],
-    imp: ['Decisions', 'Technique', 'Dribbling'],
-    sec: ['Passing', 'Strength', 'Aerial'],
+    key: ['Shooting', 'Technique', 'Dribbling'],
+    imp: ['Movement', 'Decisions', 'Pace'],
+    sec: ['Passing', 'Strength', 'Teamwork'],
   },
   'Deep-Lying Forward': {
     key: ['Passing', 'Decisions', 'Creativity'],
@@ -304,7 +304,8 @@ let state = {
   editingPlayerId: null,
   editingNodeId:   null,
   autoMode:        true,   // benchmark auto-computed from starters
-  targetBenchmark: 60,      // squad quality threshold (0–100% scale)
+  targetBenchmark: 60,     // squad quality threshold (0–100% scale)
+  youthAgeLimit:   23,     // max age for Youth tier in Squad Plan
 };
 
 /* ─── LOCALSTORAGE PERSISTENCE ──────────────────────────────────────────── */
@@ -320,6 +321,7 @@ function saveState() {
     nextNodeId:      state.nextNodeId,
     autoMode:        state.autoMode,
     targetBenchmark: state.targetBenchmark,
+    youthAgeLimit:   state.youthAgeLimit,
   };
   try { localStorage.setItem(LS_KEY, JSON.stringify(data)); } catch (_) {}
 }
@@ -337,6 +339,7 @@ function loadState() {
     if (data.nextNodeId)                    state.nextNodeId       = data.nextNodeId;
     if (data.autoMode        !== undefined) state.autoMode         = data.autoMode;
     if (data.targetBenchmark !== undefined) state.targetBenchmark  = data.targetBenchmark <= 20 ? data.targetBenchmark * 5 : data.targetBenchmark;
+    if (data.youthAgeLimit   !== undefined) state.youthAgeLimit    = data.youthAgeLimit;
     return true;
   } catch (_) { return false; }
 }
@@ -355,6 +358,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   bindBenchmarkWidget();
   bindSpPopover();
+  bindYouthCtrl();
 
   const restored = loadState();
   if (!restored) {
@@ -365,6 +369,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   recomputeAutoTarget();
   updateBenchmarkUI();
+  updateYouthUI();
   renderSquadRoster();
   renderFormationOverview();
 });
@@ -2012,11 +2017,14 @@ function derivedMainPos(type, positions) {
 /* ─── SAVE / LOAD TACTIC ────────────────────────────────────────────────── */
 function saveTactic() {
   const data = JSON.stringify({
+    version:         2,
     squad:           state.squad,
     nodes:           state.nodes,
     weights:         state.weights,
+    plan:            state.plan,
     autoMode:        state.autoMode,
     targetBenchmark: state.targetBenchmark,
+    youthAgeLimit:   state.youthAgeLimit,
     nextPlayerId:    state.nextPlayerId,
     nextNodeId:      state.nextNodeId,
   });
@@ -2037,11 +2045,13 @@ function loadTactic() {
     reader.onload = ev => {
       try {
         const data = JSON.parse(ev.target.result);
-        if (data.squad)  state.squad  = data.squad;
-        if (data.nodes)  state.nodes  = data.nodes;
+        if (data.squad)   state.squad   = data.squad;
+        if (data.nodes)   state.nodes   = data.nodes;
         if (data.weights) state.weights = data.weights;
+        if (data.plan)    state.plan    = data.plan;
         if (data.autoMode        !== undefined) state.autoMode        = data.autoMode;
         if (data.targetBenchmark !== undefined) state.targetBenchmark = data.targetBenchmark <= 20 ? data.targetBenchmark * 5 : data.targetBenchmark;
+        if (data.youthAgeLimit   !== undefined) state.youthAgeLimit   = data.youthAgeLimit;
         state.nextPlayerId = Math.max(...state.squad.map(p => p.id), 0) + 1;
         state.nextNodeId   = Math.max(...state.nodes.map(n => n.id), 0) + 1;
         saveState();
@@ -2331,6 +2341,22 @@ function nameInitials(name) {
 
 /* ─── SCOUT & COMPARE TAB ───────────────────────────────────────────────── */
 
+const _urgencyRank = { high: 0, med: 1, low: 2 };
+
+/* Returns the node id to pre-select for a scout target: highest-urgency first,
+   score as tiebreaker. Falls back to first compatible node. */
+function defaultScoutNodeId(compatibleOpts) {
+  if (compatibleOpts.length === 0) return null;
+  if (compatibleOpts.length === 1) return compatibleOpts[0].node.id;
+  const marketData = computeMarketData();
+  return [...compatibleOpts].sort((a, b) => {
+    const ua = marketData.find(d => d.node.id === a.node.id)?.urgency ?? 'low';
+    const ub = marketData.find(d => d.node.id === b.node.id)?.urgency ?? 'low';
+    const diff = (_urgencyRank[ua] ?? 2) - (_urgencyRank[ub] ?? 2);
+    return diff !== 0 ? diff : b.score - a.score;
+  })[0].node.id;
+}
+
 let _selectedScoutId = null;   // currently selected scout target id
 let _scoutNodeId     = null;   // selected node id for comparison
 let _scoutCompareId  = null;   // selected squad player id for comparison
@@ -2434,9 +2460,9 @@ function renderScoutComparison(target) {
          <div class="scout-comp-score-label">Tactical score</div>
        </div>` : '';
 
-  // Node selector
+  // Node selector — default to highest-urgency compatible node
   const selectedNodeId = (_scoutNodeId !== null && compatibleOpts.find(o => o.node.id === _scoutNodeId))
-    ? _scoutNodeId : (compatibleOpts[0]?.node.id ?? null);
+    ? _scoutNodeId : defaultScoutNodeId(compatibleOpts);
 
   let nodeSelectorHTML = '';
   if (compatibleOpts.length > 1) {
@@ -2493,7 +2519,7 @@ function renderScoutAnalysisBody(target, compatibleOpts) {
   if (!body || compatibleOpts.length === 0) return;
 
   const selNodeId = (_scoutNodeId !== null && compatibleOpts.find(o => o.node.id === _scoutNodeId))
-    ? _scoutNodeId : compatibleOpts[0].node.id;
+    ? _scoutNodeId : defaultScoutNodeId(compatibleOpts);
   const selOpt   = compatibleOpts.find(o => o.node.id === selNodeId) || compatibleOpts[0];
   const selNode  = selOpt.node;
   const tScore   = selOpt.score;
@@ -2698,11 +2724,11 @@ function canAssignToTier(nodeId, tier, playerId) {
     const node = state.nodes.find(n => n.id === starterNode);
     return `Starter of ${node?.role || 'another role'}. Remove them first.`;
   }
-  // Youth tier age gate: U23 only (soft block — visible but not clickable)
+  // Youth tier age gate: configurable limit (soft block — visible but not clickable)
   if (tier === 'youth') {
     const player = state.squad.find(p => p.id === playerId);
-    if (player?.age && player.age > 23) {
-      return 'Over 23 years old (Not eligible for Youth).';
+    if (player?.age && player.age > state.youthAgeLimit) {
+      return `Over ${state.youthAgeLimit} years old (Not eligible for Youth).`;
     }
   }
   // Trying to add as starter but player is already bench/third/youth elsewhere — allowed
@@ -2852,13 +2878,13 @@ function renderSpPanel(node) {
       const sNode = state.nodes.find(n => n.id === starterNodeId);
       actionHTML = `<span class="sp-candidate-blocked" title="Starter for ${sNode?.role || 'another role'}">🔒</span>`;
     } else {
-      const overAgeForYouth = t => t.key === 'youth' && player.age && player.age > 23;
+      const overAgeForYouth = t => t.key === 'youth' && player.age && player.age > state.youthAgeLimit;
       const tierBtns = SP_TIERS.map(t => {
         let disabled = false, disabledReason = '';
         if (t.key === 'starter' && starterSlotFull) {
           disabled = true; disabledReason = 'Starter slot full';
         } else if (overAgeForYouth(t)) {
-          disabled = true; disabledReason = 'not eligible (over 23 years old)';
+          disabled = true; disabledReason = `not eligible (over ${state.youthAgeLimit} years old)`;
         }
         return `<button class="sp-tier-btn${disabled ? ' sp-tier-btn--disabled' : ''}"
           data-tier="${t.key}" data-pid="${player.id}"
@@ -2930,6 +2956,31 @@ function renderSpPanel(node) {
 function openSpPopover()  { /* deprecated */ }
 function closeSpPopover() { }
 function bindSpPopover()  { }
+
+/* ── Youth age threshold widget ──────────────────────────────────────────── */
+function updateYouthUI() {
+  const el = document.getElementById('sp-youth-val');
+  if (el) el.textContent = state.youthAgeLimit;
+}
+
+function bindYouthCtrl() {
+  document.getElementById('btn-youth-minus')?.addEventListener('click', () => {
+    if (state.youthAgeLimit > 16) {
+      state.youthAgeLimit--;
+      updateYouthUI();
+      saveState();
+      renderSquadPlan();
+    }
+  });
+  document.getElementById('btn-youth-plus')?.addEventListener('click', () => {
+    if (state.youthAgeLimit < 30) {
+      state.youthAgeLimit++;
+      updateYouthUI();
+      saveState();
+      renderSquadPlan();
+    }
+  });
+}
 
 /* ─── MASTERPLAN UPDATE ─────────────────────────────────────────────────── */
 // App fully initialised — no external calls, all data stays in browser RAM.
