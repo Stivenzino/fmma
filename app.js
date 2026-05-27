@@ -639,26 +639,22 @@ function getPlayableRoles(player) {
   return roles;
 }
 
-/* Returns the effective familiarity level for Squad Plan purposes.
-   Wide zones consider BOTH flanks — a player known as LW can cover the RW node. */
-function getEffectiveFamLevel(player, node) {
-  const zoneKey = getZoneKey(node.x, node.y);
-  if (zoneKey !== 'GK' && !zoneKey.endsWith('_C')) {
-    const leftFam  = getPlayerFamLevel(player, zoneKey, 10);   // left side
-    const rightFam = getPlayerFamLevel(player, zoneKey, 90);   // right side
-    return Math.max(leftFam, rightFam);
-  }
-  return getPlayerFamLevel(player, zoneKey, node.x);
-}
-
-/* Familiarity-weighted role score (0–100%), or null if the player has no
-   familiarity for this node's zone (fam = 0 → ineligible). */
+/* Familiarity-weighted role score (0–100%) for a specific node (side-aware).
+   Returns null if the player has zero familiarity for THAT exact node side.
+   e.g. a LWB with 0 RWB fam will return null for a right-side WB node. */
 function squadPlanScore(player, node) {
   if (!node.role || !isCompatible(player, node.role)) return null;
-  const famLevel = getEffectiveFamLevel(player, node);
+  const zoneKey  = getZoneKey(node.x, node.y);
+  const famLevel = getPlayerFamLevel(player, zoneKey, node.x);   // exact side
   if (famLevel < 1) return null;
   const raw = rawRoleScore(player, node.role);
   return Math.max(0, Math.round(raw - FAM_PENALTY[famLevel]));
+}
+
+/* Returns the fam level for a specific node (exact side). Convenience wrapper used
+   only for display (dot colour, label) inside renderSpPanel. */
+function nodeFamLevel(player, node) {
+  return getPlayerFamLevel(player, getZoneKey(node.x, node.y), node.x);
 }
 
 /* ─── DRAG & DROP (nodes on pitch) ─────────────────────────────────────── */
@@ -2773,6 +2769,9 @@ function showSpPlaceholder() {
   document.getElementById('sp-panel-content')?.classList.add('hidden');
 }
 
+/* Short label for each tier button — clear Italian abbreviations */
+const SP_TIER_BTN_LABEL = { starter: 'Titol.', bench: 'Panch.', third: '3ª F.', youth: 'Giov.' };
+
 function renderSpPanel(node) {
   document.getElementById('sp-panel-placeholder')?.classList.add('hidden');
   const content = document.getElementById('sp-panel-content');
@@ -2783,18 +2782,23 @@ function renderSpPanel(node) {
   const zoneKey   = getZoneKey(node.x, node.y);
   const zoneLabel = ZONE_ROLES[zoneKey]?.label || zoneKey;
 
-  // Build sorted candidate list: all players with fam ≥ 1 for this node's zone
+  // Eligible candidates: fam ≥ 1 on the EXACT side of this node
   const candidates = state.squad
     .filter(p => !p.isScoutTarget)
     .map(p => {
-      const score = squadPlanScore(p, node);
+      const score = squadPlanScore(p, node);         // null if ineligible
       if (score === null) return null;
-      const famLevel = getEffectiveFamLevel(p, node);
+      const famLevel = nodeFamLevel(p, node);        // exact-side fam for display
       const tier     = playerTierOnNode(node.id, p.id);
       return { player: p, score, famLevel, tier };
     })
     .filter(Boolean)
     .sort((a, b) => b.score - a.score);
+
+  // Legend chips
+  const legendHTML = SP_TIERS.map(t =>
+    `<span class="sp-legend-chip" style="--tier-color:${t.color}">${t.label}</span>`
+  ).join('');
 
   content.innerHTML = `
     <div class="sp-panel-header">
@@ -2804,6 +2808,7 @@ function renderSpPanel(node) {
         <span class="sp-zone-label">${zoneLabel}</span>
       </div>
     </div>
+    <div class="sp-legend">${legendHTML}</div>
     <div class="sp-candidates-list" id="sp-candidates-list"></div>
   `;
 
@@ -2814,7 +2819,11 @@ function renderSpPanel(node) {
     return;
   }
 
-  candidates.forEach(({ player, score, famLevel, tier }) => {
+  // Split: assigned first, then unassigned
+  const assigned   = candidates.filter(c => c.tier !== null);
+  const unassigned = candidates.filter(c => c.tier === null);
+
+  const buildRow = ({ player, score, famLevel, tier }) => {
     const scoreColor     = score >= 70 ? '#39ff14' : score >= 50 ? '#00e5ff' : '#aaa';
     const famColor       = FAM_COLORS[famLevel];
     const starterNodeId  = findPlayerAsStarter(player.id);
@@ -2825,20 +2834,21 @@ function renderSpPanel(node) {
     if (tier) {
       const tierMeta = SP_TIERS.find(t => t.key === tier);
       actionHTML = `
-        <span class="sp-assigned-badge" style="color:${tierMeta.color}">${tierMeta.label}</span>
-        <button class="sp-candidate-remove" data-pid="${player.id}" data-tier="${tier}" title="Rimuovi">×</button>`;
+        <div class="sp-cand-assigned">
+          <span class="sp-assigned-badge" style="--tier-color:${tierMeta.color}">${tierMeta.label}</span>
+          <button class="sp-candidate-remove" data-pid="${player.id}" data-tier="${tier}" title="Rimuovi dalla fascia">×</button>
+        </div>`;
     } else if (isStarterElsewhere) {
       const sNode = state.nodes.find(n => n.id === starterNodeId);
       actionHTML = `<span class="sp-candidate-blocked" title="Titolare di ${sNode?.role || 'altro ruolo'}">🔒</span>`;
     } else {
       const tierBtns = SP_TIERS.map(t => {
-        const label    = t.key === 'starter' ? 'T' : t.key === 'bench' ? 'P' : t.key === 'third' ? '3' : 'G';
         const disabled = t.key === 'starter' && starterSlotFull;
         return `<button class="sp-tier-btn${disabled ? ' sp-tier-btn--disabled' : ''}"
           data-tier="${t.key}" data-pid="${player.id}"
-          title="${t.label}${disabled ? ' (slot pieno)' : ''}"
+          title="${t.label}${disabled ? ' — titolare già assegnato' : ''}"
           style="--tier-color:${t.color}"
-          ${disabled ? 'disabled' : ''}>${label}</button>`;
+          ${disabled ? 'disabled' : ''}>${SP_TIER_BTN_LABEL[t.key]}</button>`;
       }).join('');
       actionHTML = `<div class="sp-tier-btns">${tierBtns}</div>`;
     }
@@ -2849,7 +2859,7 @@ function renderSpPanel(node) {
       <div class="sp-cand-fam" style="background:${famColor}" title="${FAM_LABELS[famLevel]}"></div>
       <div class="sp-cand-info">
         <span class="sp-cand-name">${player.name}</span>
-        <span class="sp-cand-meta">${player.age || '?'} · ${FAM_LABELS[famLevel]}</span>
+        <span class="sp-cand-meta">${player.age || '?'} · <span style="color:${famColor}">${FAM_LABELS[famLevel]}</span></span>
       </div>
       <span class="sp-cand-score" style="color:${scoreColor}">${score}%</span>
       <div class="sp-cand-actions">${actionHTML}</div>
@@ -2877,8 +2887,26 @@ function renderSpPanel(node) {
       renderSquadPlan();
     });
 
-    listEl.appendChild(row);
-  });
+    return row;
+  };
+
+  if (assigned.length > 0) {
+    const hdr = document.createElement('div');
+    hdr.className = 'sp-section-hdr';
+    hdr.textContent = 'Assegnati';
+    listEl.appendChild(hdr);
+    assigned.forEach(c => listEl.appendChild(buildRow(c)));
+  }
+
+  if (unassigned.length > 0) {
+    if (assigned.length > 0) {
+      const hdr = document.createElement('div');
+      hdr.className = 'sp-section-hdr sp-section-hdr--candidates';
+      hdr.textContent = 'Candidati disponibili';
+      listEl.appendChild(hdr);
+    }
+    unassigned.forEach(c => listEl.appendChild(buildRow(c)));
+  }
 }
 
 /* ── Squad Plan popover — replaced by inline candidate list ──────────────── */
