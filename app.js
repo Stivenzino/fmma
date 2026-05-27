@@ -1397,7 +1397,7 @@ function renderSquadBenchmark() {
   }
   val.textContent = bench + '%';
   stars.innerHTML = renderStarsHTML(getStarsForPlayer(bench, state.targetBenchmark));
-  count.textContent = `(${players.length} giocatori)`;
+  count.textContent = `(${players.length} players)`;
 }
 
 function renderSquadTable() {
@@ -1862,13 +1862,13 @@ function renderModalRoleSuggestions() {
     .slice(0, 8);
 
   if (scored.length === 0) {
-    panel.innerHTML = '<p class="modal-roles-empty">Inserisci gli attributi per vedere i ruoli consigliati.</p>';
+    panel.innerHTML = '<p class="modal-roles-empty">Enter attributes to see recommended roles.</p>';
     return;
   }
 
   const subtitle = selectedKeys.size > 0
-    ? `${selectedKeys.size} zona${selectedKeys.size > 1 ? 'e' : ''} selezionata${selectedKeys.size > 1 ? 'e' : ''}`
-    : 'tutti i ruoli compatibili';
+    ? `${selectedKeys.size} zone${selectedKeys.size > 1 ? 's' : ''} selected`
+    : 'all compatible roles';
 
   const chips = scored.map(({ role, score }) => {
     const cls = score >= 70 ? 'role-chip-good' : score >= 50 ? 'role-chip-ok' : 'role-chip-low';
@@ -1880,7 +1880,7 @@ function renderModalRoleSuggestions() {
 
   panel.innerHTML = `
     <div class="modal-roles-header">
-      <span class="modal-roles-title">Ruoli Consigliati</span>
+      <span class="modal-roles-title">Recommended Roles</span>
       <span class="modal-roles-sub">${subtitle}</span>
     </div>
     <div class="modal-roles-list">${chips}</div>`;
@@ -2149,9 +2149,9 @@ function renderMarket() {
 function renderMarketNoPlan() {
   const msg = `<div class="market-noplan-msg">
     <div class="market-noplan-icon">📋</div>
-    <p><strong>Squad Plan non configurato</strong></p>
-    <p class="muted">Vai alla tab <strong>Squad Plan</strong> e assegna titolari e riserve per ogni ruolo in campo.<br>
-    Solo allora il Market potrà calcolare le priorità di acquisto in modo accurato.</p>
+    <p><strong>Squad Plan not configured</strong></p>
+    <p class="muted">Go to the <strong>Squad Plan</strong> tab and assign starters and backups for each position on the pitch.<br>
+    Only then will Market be able to accurately calculate signing priorities.</p>
   </div>`;
   document.getElementById('market-priority-list').innerHTML  = msg;
   document.getElementById('market-coverage-list').innerHTML  = msg;
@@ -2211,7 +2211,7 @@ function renderMarketPriority(results) {
 
   if (results.length === 0) {
     badge.textContent = '0';
-    list.innerHTML = '<p class="market-empty muted">Nessun dato disponibile.<br>Aggiungi giocatori e assegna i ruoli in campo.</p>';
+    list.innerHTML = '<p class="market-empty muted">No data available.<br>Add players and assign roles on the pitch.</p>';
     return;
   }
 
@@ -2226,20 +2226,20 @@ function renderMarketPriority(results) {
   badge.textContent = urgent.length;
 
   if (urgent.length === 0) {
-    list.innerHTML = '<p class="market-empty muted">✅ Rosa coperta!<br>Tutti gli slot hanno titolari e riserve adeguate.</p>';
+    list.innerHTML = '<p class="market-empty muted">✅ Squad covered!<br>All positions have adequate starters and backups.</p>';
     return;
   }
 
   const playerChip = (player, score, tag) => `
     <div class="mcp-row">
-      <div class="mcp-avatar${tag === 'Riserva' ? ' reserve' : ''}">${nameInitials(player.name)}</div>
+      <div class="mcp-avatar${tag === 'Backup' ? ' reserve' : ''}">${nameInitials(player.name)}</div>
       <div class="mcp-info">
         <span class="mcp-name">${truncate(player.name, 16)}</span>
         <span class="mcp-tag">${tag}</span>
       </div>
       <div class="mcp-right">
         <span class="mcp-pct">${score}%</span>
-        <div class="mcp-bar"><div class="mcp-bar-fill${tag === 'Riserva' ? ' reserve' : ''}" style="width:${Math.min(score,100)}%"></div></div>
+        <div class="mcp-bar"><div class="mcp-bar-fill${tag === 'Backup' ? ' reserve' : ''}" style="width:${Math.min(score,100)}%"></div></div>
       </div>
     </div>`;
 
@@ -2247,15 +2247,15 @@ function renderMarketPriority(results) {
     const tiers     = ROLE_ATTRS[node.role] || { key: [], imp: [], sec: [] };
     const keyAttrs  = tiers.key.slice(0, 3);
     const zoneLabel = ZONE_ROLES[getZoneKey(node.x, node.y)]?.label || '';
-    const labelMap  = { high: 'ALTA', med: 'MEDIA' };
+    const labelMap  = { high: 'HIGH', med: 'MED' };
 
     const diagnosis = urgency === 'high'
       ? (!starter
-          ? 'Nessun titolare adeguato disponibile in rosa.'
-          : `Il titolare ha un'idoneità inferiore allo standard di categoria (${starter.score}% vs min. richiesto ${starterThreshold}%).`)
+          ? 'No adequate starter available in the squad.'
+          : `Starter fitness is below category standard (${starter.score}% vs min. required ${starterThreshold}%).`)
       : (!backup
-          ? 'Nessuna riserva con familiarità sufficiente (min. Competent).'
-          : `La riserva ha un'idoneità inferiore allo standard di categoria (${backup.score}% vs min. richiesto ${backupThreshold}%).`);
+          ? 'No backup with sufficient familiarity (min. Competent).'
+          : `Backup fitness is below category standard (${backup.score}% vs min. required ${backupThreshold}%).`);
 
     const card = document.createElement('div');
     card.className = `market-card urgency-${urgency}`;
@@ -2269,8 +2269,8 @@ function renderMarketPriority(results) {
       </div>
       <p class="market-card-note">${diagnosis}</p>
       ${keyAttrs.length ? `<div class="market-key-attrs">${keyAttrs.map(a => `<span class="key-attr-chip">${a}</span>`).join('')}</div>` : ''}
-      ${starter ? playerChip(starter.player, starter.score, 'Titolare') : ''}
-      ${backup  ? playerChip(backup.player,  backup.score,  'Riserva')  : ''}
+      ${starter ? playerChip(starter.player, starter.score, 'Starter') : ''}
+      ${backup  ? playerChip(backup.player,  backup.score,  'Backup')  : ''}
     `;
     list.appendChild(card);
   });
@@ -2284,7 +2284,7 @@ function renderMarketCoverage(results) {
   badge.textContent = results.length;
 
   if (results.length === 0) {
-    list.innerHTML = '<p class="market-empty muted">Nessun ruolo configurato in campo.</p>';
+    list.innerHTML = '<p class="market-empty muted">No roles configured on the pitch.</p>';
     return;
   }
 
@@ -2314,8 +2314,8 @@ function renderMarketCoverage(results) {
           <span class="cov-urgency-dot" style="background:${dotColor(urgency)}"></span>
         </div>
         <div class="coverage-slots">
-          ${slot('Titolare', starter?.player ?? null, starter?.score ?? 0, 'starter')}
-          ${slot('Riserva',  backup?.player  ?? null, backup?.score  ?? 0, 'reserve')}
+          ${slot('Starter', starter?.player ?? null, starter?.score ?? 0, 'starter')}
+          ${slot('Backup',  backup?.player  ?? null, backup?.score  ?? 0, 'reserve')}
         </div>`;
       list.appendChild(row);
     });
@@ -2342,7 +2342,7 @@ function renderScoutTab() {
   list.innerHTML = '';
 
   if (targets.length === 0) {
-    list.innerHTML = '<p class="muted scout-empty">Nessun obiettivo monitorato.<br>Aggiungi un giocatore con status "Obiettivo Mercato".</p>';
+    list.innerHTML = '<p class="muted scout-empty">No scouting targets.<br>Add a player with status "Scouting Target".</p>';
     _selectedScoutId = null;
     showScoutPlaceholder();
     return;
@@ -2361,10 +2361,10 @@ function renderScoutTab() {
       <div class="scout-target-avatar">${nameInitials(target.name)}</div>
       <div class="scout-target-info">
         <div class="scout-target-name">${target.name}</div>
-        <div class="scout-target-meta">${[target.age ? target.age + ' anni' : null, target.nationality, target.value].filter(Boolean).join(' · ')}</div>
+        <div class="scout-target-meta">${[target.age ? target.age + ' yrs' : null, target.nationality, target.value].filter(Boolean).join(' · ')}</div>
       </div>
       <div class="scout-target-score ${bestScore === null ? 'muted' : ''}">${bestScore !== null ? bestScore + '%' : '—'}</div>
-      <button class="scout-card-del" title="Rimuovi obiettivo">&times;</button>`;
+      <button class="scout-card-del" title="Remove target">&times;</button>`;
     card.querySelector('.scout-card-del').addEventListener('click', e => {
       e.stopPropagation();
       deletePlayer(target.id);
@@ -2428,7 +2428,7 @@ function renderScoutComparison(target) {
   const scoreHTML = topScore !== null
     ? `<div class="scout-comp-score-wrap">
          <div class="scout-comp-score">${topScore}%</div>
-         <div class="scout-comp-score-label">Punteggio tattico</div>
+         <div class="scout-comp-score-label">Tactical score</div>
        </div>` : '';
 
   // Node selector
@@ -2443,7 +2443,7 @@ function renderScoutComparison(target) {
     }).join('');
     nodeSelectorHTML = `
       <div class="scout-section">
-        <span class="scout-section-label">Ruolo analizzato</span>
+        <span class="scout-section-label">Role analysed</span>
         <select id="scout-node-select" class="fmm-select">${opts}</select>
       </div>`;
   } else if (compatibleOpts.length === 1) {
@@ -2451,7 +2451,7 @@ function renderScoutComparison(target) {
     const zone = ZONE_ROLES[getZoneKey(o.node.x, o.node.y)]?.label || o.node.role;
     nodeSelectorHTML = `
       <div class="scout-section">
-        <span class="scout-section-label">Ruolo analizzato</span>
+        <span class="scout-section-label">Role analysed</span>
         <div class="fmm-input" style="opacity:0.7">${o.node.role} (${zone}) — ${o.score}%</div>
       </div>`;
   }
@@ -2462,7 +2462,7 @@ function renderScoutComparison(target) {
         <div class="scout-comp-avatar">${nameInitials(target.name)}</div>
         <div class="scout-comp-info">
           <div class="scout-comp-name">${target.name}</div>
-          <div class="scout-comp-meta">${[target.age ? target.age + ' anni' : null, target.nationality, target.value, target.wage].filter(Boolean).join(' · ')}</div>
+          <div class="scout-comp-meta">${[target.age ? target.age + ' yrs' : null, target.nationality, target.value, target.wage].filter(Boolean).join(' · ')}</div>
         </div>
         ${scoreHTML}
       </div>
@@ -2479,7 +2479,7 @@ function renderScoutComparison(target) {
 
   if (compatibleOpts.length === 0) {
     document.getElementById('scout-analysis-body').innerHTML =
-      '<div class="scout-incompat">⚠️ Incompatibile con il modulo attivo — nessuna zona coperta da questo giocatore.</div>';
+      '<div class="scout-incompat">⚠️ Incompatible with the active formation — no zones covered by this player.</div>';
   } else {
     renderScoutAnalysisBody(target, compatibleOpts);
   }
@@ -2519,13 +2519,13 @@ function renderScoutAnalysisBody(target, compatibleOpts) {
 
   const cmpSelectHTML = candidates.length > 0
     ? `<div class="scout-section">
-         <span class="scout-section-label">Confronta con</span>
+         <span class="scout-section-label">Compare with</span>
          <select id="scout-compare-select" class="fmm-select">
-           <option value="">— Nessun confronto —</option>
+           <option value="">— No comparison —</option>
            ${cmpOpts}
          </select>
        </div>`
-    : `<div class="scout-section"><span class="scout-section-label muted">Nessun giocatore in rosa compatibile</span></div>`;
+    : `<div class="scout-section"><span class="scout-section-label muted">No compatible squad players</span></div>`;
 
   body.innerHTML = `
     <div class="scout-verdict-box ${verdict.cls}">
@@ -2553,36 +2553,36 @@ function computeScoutVerdict(targetScore, nodeMarket) {
 
   // 1. Below the minimum standard for this category — always disqualified
   if (targetScore < backupMin) return {
-    label: 'QUALITÀ INSUFFICIENTE', cls: 'verdict-insufficient',
-    desc:  `Il giocatore non soddisfa lo standard minimo di categoria (${targetScore}% vs min. ${backupMin}%). Non adatto alla rosa.`,
+    label: 'INSUFFICIENT QUALITY', cls: 'verdict-insufficient',
+    desc:  `Player does not meet the minimum category standard (${targetScore}% vs min. ${backupMin}%). Not suitable for the squad.`,
   };
 
   // 2. Weaker than BOTH starter and backup already in squad — redundant regardless of urgency
   if (targetScore <= starterScore && targetScore <= backupScore) return {
-    label: 'SCONSIGLIATO', cls: 'verdict-redundant',
-    desc:  `La rosa copre già questo ruolo con giocatori più forti: titolare ${starterScore}%, riserva ${backupScore}%. L'acquisto (${targetScore}%) sarebbe ridondante.`,
+    label: 'NOT RECOMMENDED', cls: 'verdict-redundant',
+    desc:  `The squad already covers this role with stronger players: starter ${starterScore}%, backup ${backupScore}%. Signing (${targetScore}%) would be redundant.`,
   };
 
   // 3. Better than backup but not starter — viable depth signing if need exists
   if (targetScore <= starterScore && targetScore > backupScore) {
     if (urgency === 'high' || urgency === 'med') return {
-      label: 'ACQUISTO CONSIGLIATO', cls: 'verdict-recommended',
-      desc:  `Il giocatore (${targetScore}%) migliora la copertura in profondità: supera la riserva attuale (${backupScore}%) ma rimane sotto il titolare (${starterScore}%).`,
+      label: 'RECOMMENDED SIGNING', cls: 'verdict-recommended',
+      desc:  `Player (${targetScore}%) improves depth: beats current backup (${backupScore}%) but remains below starter (${starterScore}%).`,
     };
     return {
-      label: 'SCONSIGLIATO', cls: 'verdict-redundant',
-      desc:  `Il titolare (${starterScore}%) copre già adeguatamente il ruolo e la necessità di riserva non è urgente. L'acquisto (${targetScore}%) non è prioritario.`,
+      label: 'NOT RECOMMENDED', cls: 'verdict-redundant',
+      desc:  `Starter (${starterScore}%) already covers this role adequately and backup need is not urgent. Signing (${targetScore}%) is not a priority.`,
     };
   }
 
   // 4. Clear upgrade over the current starter
   if (urgency === 'high') return {
-    label: 'ACQUISTO PRIORITARIO', cls: 'verdict-priority',
-    desc:  `Il ruolo è scoperto e il giocatore (${targetScore}%) supera lo standard richiesto (soglia ${starterMin}%). Acquisto ad alta priorità.`,
+    label: 'PRIORITY SIGNING', cls: 'verdict-priority',
+    desc:  `Position is uncovered and the player (${targetScore}%) exceeds the required standard (threshold ${starterMin}%). High-priority signing.`,
   };
   return {
-    label: 'UPGRADE DI QUALITÀ', cls: 'verdict-upgrade',
-    desc:  `Il giocatore (${targetScore}%) supera il titolare attuale (${starterScore}%) di ${targetScore - starterScore} punti. Upgrade consigliato.`,
+    label: 'QUALITY UPGRADE', cls: 'verdict-upgrade',
+    desc:  `Player (${targetScore}%) beats the current starter (${starterScore}%) by ${targetScore - starterScore} points. Upgrade recommended.`,
   };
 }
 
@@ -2619,10 +2619,10 @@ function buildStatBarsHTML(target, cmpPlayer, node) {
     </div>`;
 
   return `<div class="scout-stats">
-    ${row('Punteggio Tattico', tScore, cScore, maxScore, v => v + '%')}
-    ${row('Media Tecnica',     tTech,  cTech,  20,       v => v.toFixed(1))}
-    ${row('Media Mentale',     tMent,  cMent,  20,       v => v.toFixed(1))}
-    ${row('Media Fisica',      tPhys,  cPhys,  20,       v => v.toFixed(1))}
+    ${row('Tactical Score', tScore, cScore, maxScore, v => v + '%')}
+    ${row('Technical Avg',  tTech,  cTech,  20,       v => v.toFixed(1))}
+    ${row('Mental Avg',     tMent,  cMent,  20,       v => v.toFixed(1))}
+    ${row('Physical Avg',   tPhys,  cPhys,  20,       v => v.toFixed(1))}
   </div>`;
 }
 
@@ -2636,10 +2636,10 @@ function attrGroupAvg(player, group) {
 /* ─── SQUAD PLAN ─────────────────────────────────────────────────────────── */
 
 const SP_TIERS = [
-  { key: 'starter', label: 'Titolare',     max: 1,    color: '#39ff14' },
-  { key: 'bench',   label: 'Panchina',     max: null, color: '#00e5ff' },
-  { key: 'third',   label: 'Terza Fascia', max: null, color: '#ffdf00' },
-  { key: 'youth',   label: 'Giovani',      max: null, color: '#ff9500' },
+  { key: 'starter', label: 'Starter',  max: 1,    color: '#39ff14' },
+  { key: 'bench',   label: 'Bench',    max: null, color: '#00e5ff' },
+  { key: 'third',   label: '3rd Tier', max: null, color: '#ffdf00' },
+  { key: 'youth',   label: 'Youth',    max: null, color: '#ff9500' },
 ];
 
 const SP_ZONE_ORDER = ['GK','DEF_C','DEF_W','DM_C','DM_W','CM_C','CM_W','AM_C','AM_W','ATT_C','ATT_W'];
@@ -2686,14 +2686,14 @@ function cleanOrphanPlan(validNodeIds) {
 // Returns null if assignment is allowed, or an error string if blocked
 function canAssignToTier(nodeId, tier, playerId) {
   // Already in this exact slot
-  if (playerTierOnNode(nodeId, playerId) === tier) return 'Giocatore già in questa fascia.';
+  if (playerTierOnNode(nodeId, playerId) === tier) return 'Player already in this tier.';
   // Already in another tier of this same node
-  if (playerTierOnNode(nodeId, playerId) !== null)  return 'Già assegnato in un\'altra fascia di questo ruolo.';
-  // Titolare anywhere → locked to that node only
+  if (playerTierOnNode(nodeId, playerId) !== null)  return 'Already assigned to another tier for this role.';
+  // Starter anywhere → locked to that node only
   const starterNode = findPlayerAsStarter(playerId);
   if (starterNode !== null) {
     const node = state.nodes.find(n => n.id === starterNode);
-    return `Titolare di ${node?.role || 'altro ruolo'}. Rimuovilo prima.`;
+    return `Starter for ${node?.role || 'another role'}. Remove first.`;
   }
   // Trying to add as starter but player is already bench/third/youth elsewhere — allowed
   // (only starter→other-node is blocked, bench can multi-assign freely)
@@ -2769,8 +2769,8 @@ function showSpPlaceholder() {
   document.getElementById('sp-panel-content')?.classList.add('hidden');
 }
 
-/* Short label for each tier button — clear Italian abbreviations */
-const SP_TIER_BTN_LABEL = { starter: 'Titol.', bench: 'Panch.', third: '3ª F.', youth: 'Giov.' };
+/* Short label for each tier button */
+const SP_TIER_BTN_LABEL = { starter: 'Start.', bench: 'Bench', third: '3rd T.', youth: 'Youth' };
 
 function renderSpPanel(node) {
   document.getElementById('sp-panel-placeholder')?.classList.add('hidden');
@@ -2815,7 +2815,7 @@ function renderSpPanel(node) {
   const listEl = content.querySelector('#sp-candidates-list');
 
   if (candidates.length === 0) {
-    listEl.innerHTML = '<p class="muted" style="padding:16px 12px;font-size:13px">Nessun giocatore compatibile con questo ruolo.</p>';
+    listEl.innerHTML = '<p class="muted" style="padding:16px 12px;font-size:13px">No compatible players for this role.</p>';
     return;
   }
 
@@ -2836,17 +2836,17 @@ function renderSpPanel(node) {
       actionHTML = `
         <div class="sp-cand-assigned">
           <span class="sp-assigned-badge" style="--tier-color:${tierMeta.color}">${tierMeta.label}</span>
-          <button class="sp-candidate-remove" data-pid="${player.id}" data-tier="${tier}" title="Rimuovi dalla fascia">×</button>
+          <button class="sp-candidate-remove" data-pid="${player.id}" data-tier="${tier}" title="Remove from tier">×</button>
         </div>`;
     } else if (isStarterElsewhere) {
       const sNode = state.nodes.find(n => n.id === starterNodeId);
-      actionHTML = `<span class="sp-candidate-blocked" title="Titolare di ${sNode?.role || 'altro ruolo'}">🔒</span>`;
+      actionHTML = `<span class="sp-candidate-blocked" title="Starter for ${sNode?.role || 'another role'}">🔒</span>`;
     } else {
       const tierBtns = SP_TIERS.map(t => {
         const disabled = t.key === 'starter' && starterSlotFull;
         return `<button class="sp-tier-btn${disabled ? ' sp-tier-btn--disabled' : ''}"
           data-tier="${t.key}" data-pid="${player.id}"
-          title="${t.label}${disabled ? ' — titolare già assegnato' : ''}"
+          title="${t.label}${disabled ? ' — starter slot full' : ''}"
           style="--tier-color:${t.color}"
           ${disabled ? 'disabled' : ''}>${SP_TIER_BTN_LABEL[t.key]}</button>`;
       }).join('');
@@ -2893,7 +2893,7 @@ function renderSpPanel(node) {
   if (assigned.length > 0) {
     const hdr = document.createElement('div');
     hdr.className = 'sp-section-hdr';
-    hdr.textContent = 'Assegnati';
+    hdr.textContent = 'Assigned';
     listEl.appendChild(hdr);
     assigned.forEach(c => listEl.appendChild(buildRow(c)));
   }
@@ -2902,7 +2902,7 @@ function renderSpPanel(node) {
     if (assigned.length > 0) {
       const hdr = document.createElement('div');
       hdr.className = 'sp-section-hdr sp-section-hdr--candidates';
-      hdr.textContent = 'Candidati disponibili';
+      hdr.textContent = 'Available candidates';
       listEl.appendChild(hdr);
     }
     unassigned.forEach(c => listEl.appendChild(buildRow(c)));
