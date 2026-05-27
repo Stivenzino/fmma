@@ -2824,6 +2824,26 @@ function showSpPlaceholder() {
 /* Short label for each tier button */
 const SP_TIER_BTN_LABEL = { starter: 'Start.', bench: 'Bench', third: '3rd T.', youth: 'Youth' };
 
+/* Short label shown in cross-node assignment badges */
+const SP_TIER_SHORT = { starter: 'S', bench: 'B', third: '3', youth: 'Y' };
+
+/* Returns all plan assignments for a player on nodes OTHER than excludeNodeId.
+   Each entry: { tier, role, nodeId } */
+function getPlayerOtherAssignments(playerId, excludeNodeId) {
+  const result = [];
+  for (const [nid, plan] of Object.entries(state.plan)) {
+    if (parseInt(nid) === excludeNodeId || !plan) continue;
+    const node = state.nodes.find(n => n.id === parseInt(nid));
+    if (!node) continue;
+    const role = node.role || '?';
+    if (plan.starter === playerId)        result.push({ tier: 'starter', role });
+    if (plan.bench?.includes(playerId))   result.push({ tier: 'bench',   role });
+    if (plan.third?.includes(playerId))   result.push({ tier: 'third',   role });
+    if (plan.youth?.includes(playerId))   result.push({ tier: 'youth',   role });
+  }
+  return result;
+}
+
 function renderSpPanel(node) {
   document.getElementById('sp-panel-placeholder')?.classList.add('hidden');
   const content = document.getElementById('sp-panel-content');
@@ -2911,13 +2931,21 @@ function renderSpPanel(node) {
       actionHTML = `<div class="sp-tier-btns">${tierBtns}</div>`;
     }
 
+    const otherAssignments = getPlayerOtherAssignments(player.id, node.id);
+    const otherHTML = otherAssignments.length
+      ? `<span class="sp-cand-other">${otherAssignments.map(a => {
+          const tierMeta = SP_TIERS.find(t => t.key === a.tier);
+          return `<span class="sp-cand-other-badge" style="--tier-color:${tierMeta.color}" title="${tierMeta.label} — ${a.role}">${SP_TIER_SHORT[a.tier]}&thinsp;${shortRole(a.role)}</span>`;
+        }).join('')}</span>`
+      : '';
+
     const row = document.createElement('div');
     row.className = 'sp-candidate-row' + (tier ? ` sp-cand--${tier}` : '');
     row.innerHTML = `
       <div class="sp-cand-fam" style="background:${famColor}" title="${FAM_LABELS[famLevel]}"></div>
       <div class="sp-cand-info">
         <span class="sp-cand-name">${player.name}</span>
-        <span class="sp-cand-meta">${player.age || '?'} · <span style="color:${famColor}">${FAM_LABELS[famLevel]}</span></span>
+        <span class="sp-cand-meta">${player.age || '?'} · <span style="color:${famColor}">${FAM_LABELS[famLevel]}</span>${otherHTML}</span>
       </div>
       <span class="sp-cand-score" style="color:${scoreColor}">${score}%</span>
       <div class="sp-cand-actions">${actionHTML}</div>

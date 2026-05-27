@@ -2790,6 +2790,25 @@ html, body {
   font-size: 10px;
   color: var(--text-muted);
   white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.sp-cand-other {
+  display: flex;
+  gap: 3px;
+  flex-wrap: wrap;
+}
+.sp-cand-other-badge {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--tier-color);
+  border: 1px solid var(--tier-color);
+  border-radius: 3px;
+  padding: 0 3px;
+  opacity: 0.85;
+  line-height: 1.5;
 }
 
 /* Score percentage */
