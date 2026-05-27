@@ -2108,7 +2108,7 @@ function updateBenchmarkUI() {
   const valEl  = document.getElementById('benchmark-value');
   const autoBtn = document.getElementById('btn-benchmark-auto');
   if (!valEl || !autoBtn) return;
-  valEl.textContent = Math.round(state.targetBenchmark) + '%';
+  valEl.textContent = (state.autoMode && !isPlanConfigured()) ? '—' : Math.round(state.targetBenchmark) + '%';
   autoBtn.classList.toggle('auto-on',  state.autoMode);
   autoBtn.classList.toggle('auto-off', !state.autoMode);
 }
