@@ -195,14 +195,40 @@
        TAB: SQUAD PLAN
   ══════════════════════════════════════════════════════════════════════ -->
   <section class="tab-panel" id="tab-squad-plan">
-    <div class="sp-shell glass">
-      <div class="sp-page-header">
-        <div>
-          <h2>Squad Plan</h2>
-          <p class="sp-header-hint muted">Assegna i giocatori a ogni ruolo della formazione per fascia: Titolare, Panchina, Terza Fascia, Giovani.</p>
+    <div class="sp-layout">
+
+      <!-- LEFT: Formation pitch (read-only, clickable nodes) -->
+      <div class="sp-pitch-container">
+        <div class="sp-pitch-header">
+          <h3>Formazione</h3>
+          <p class="sp-pitch-hint muted">Clicca su un nodo per configurarlo</p>
+        </div>
+        <div class="sp-pitch-wrap">
+          <div class="sp-pitch" id="sp-pitch">
+            <svg class="pitch-svg" viewBox="0 0 400 600" preserveAspectRatio="none">
+              <rect x="2" y="2" width="396" height="596" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="2"/>
+              <line x1="2" y1="300" x2="398" y2="300" stroke="rgba(255,255,255,0.12)" stroke-width="1.5"/>
+              <circle cx="200" cy="300" r="60" fill="none" stroke="rgba(255,255,255,0.12)" stroke-width="1.5"/>
+              <circle cx="200" cy="300" r="3" fill="rgba(255,255,255,0.3)"/>
+              <rect x="90" y="2" width="220" height="100" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+              <rect x="90" y="498" width="220" height="100" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+              <rect x="145" y="2" width="110" height="40" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+              <rect x="145" y="558" width="110" height="40" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+            </svg>
+            <div id="sp-pitch-nodes"></div>
+          </div>
         </div>
       </div>
-      <div id="sp-node-grid" class="sp-node-grid"></div>
+
+      <!-- RIGHT: Assignment panel (shown when a node is selected) -->
+      <div class="sp-panel" id="sp-panel">
+        <div class="sp-panel-placeholder" id="sp-panel-placeholder">
+          <div class="sp-panel-placeholder-icon">👆</div>
+          <p>Seleziona un nodo per configurare la copertura del ruolo</p>
+        </div>
+        <div id="sp-panel-content" class="hidden"></div>
+      </div>
+
     </div>
   </section>
 

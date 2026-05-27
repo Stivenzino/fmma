@@ -1,4 +1,4 @@
-/* ═══════════════════════════════════════════════════════════════════════════
+﻿/* ═══════════════════════════════════════════════════════════════════════════
    FMM Tactical Mastermind — Design System
    ═══════════════════════════════════════════════════════════════════════════ */
 
@@ -2493,70 +2493,132 @@ html, body {
    SQUAD PLAN
    ═══════════════════════════════════════════════════════════════════════════ */
 
-/* Page shell */
-.sp-shell {
+/* Two-column layout: pitch left, panel right */
+.sp-layout {
   display: flex;
-  flex-direction: column;
   height: 100%;
-  padding: 20px 24px;
-  overflow-y: auto;
-  gap: 20px;
+  overflow: hidden;
 }
 
-.sp-page-header {
+/* Left: pitch column */
+.sp-pitch-container {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
+  flex-direction: column;
+  width: 380px;
+  flex-shrink: 0;
+  padding: 16px 16px 16px 20px;
+  gap: 10px;
+  border-right: 1px solid rgba(255,255,255,0.07);
+  background: var(--bg-glass);
+  backdrop-filter: blur(12px);
 }
-.sp-page-header h2 {
-  font-size: 20px;
+.sp-pitch-header h3 {
+  font-size: 14px;
   font-weight: 700;
   color: var(--text-main);
 }
-.sp-header-hint {
-  font-size: 12px;
-  margin-top: 4px;
+.sp-pitch-hint {
+  font-size: 11px;
+  margin-top: 2px;
+}
+.sp-pitch-wrap {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+.sp-pitch {
+  position: absolute;
+  inset: 0;
+}
+.sp-pitch .pitch-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+#sp-pitch-nodes {
+  position: absolute;
+  inset: 0;
 }
 
-/* Empty state */
-.sp-empty {
-  text-align: center;
-  padding: 48px 24px;
-  font-size: 14px;
-  line-height: 1.6;
-}
-
-/* Node grid */
-.sp-node-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 14px;
-  align-content: start;
-}
-
-/* Node card */
-.sp-card {
-  background: var(--bg-glass2);
-  border: 1px solid rgba(255,255,255,0.07);
-  border-radius: 10px;
-  padding: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  transition: border-color 0.2s;
-}
-.sp-card:hover {
-  border-color: rgba(0,242,254,0.2);
-}
-
-/* Card header */
-.sp-card-head {
+/* SP nodes on pitch */
+.sp-pitch-node {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid rgba(255,255,255,0.06);
+  justify-content: center;
+  cursor: pointer;
+  border: 2px solid rgba(255,255,255,0.2);
+  background: var(--bg-node);
+  color: rgba(255,255,255,0.35);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  z-index: 10;
+  transition: border-color 0.15s, color 0.15s, box-shadow 0.15s, transform 0.15s;
+  user-select: none;
+}
+.sp-pitch-node:hover:not(.sp-node--selected) {
+  border-color: var(--cyan);
+  color: var(--cyan);
+}
+.sp-node--partial {
+  border-color: #ffdf00;
+  color: #ffdf00;
+}
+.sp-node--starter {
+  border-color: var(--neon-green);
+  color: var(--neon-green);
+  box-shadow: 0 0 8px rgba(57,255,20,0.25);
+}
+.sp-node--selected {
+  border-color: var(--cyan) !important;
+  color: var(--cyan) !important;
+  box-shadow: 0 0 14px rgba(0,242,254,0.55) !important;
+  transform: translate(-50%, -50%) scale(1.12);
+}
+
+/* Right: assignment panel */
+.sp-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 28px 32px;
+  overflow-y: auto;
+  gap: 0;
+  background: var(--bg-glass);
+  backdrop-filter: blur(12px);
+}
+.sp-panel-placeholder {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.sp-panel-placeholder-icon { font-size: 36px; }
+
+#sp-panel-content {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.sp-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
 }
 .sp-role-badge {
   font-size: 11px;
@@ -2564,62 +2626,64 @@ html, body {
   color: var(--bg-deep);
   background: var(--cyan);
   border-radius: 5px;
-  padding: 2px 7px;
+  padding: 3px 8px;
   flex-shrink: 0;
   letter-spacing: 0.5px;
 }
 .sp-card-info {
   display: flex;
   flex-direction: column;
-  gap: 1px;
-  min-width: 0;
+  gap: 2px;
 }
 .sp-role-name {
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 16px;
+  font-weight: 700;
   color: var(--text-main);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 .sp-zone-label {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--text-muted);
-  letter-spacing: 0.5px;
+  letter-spacing: 0.4px;
 }
 
-/* Tier block */
+/* Tier sections in panel */
+.sp-panel-tiers {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
 .sp-tier {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 7px;
 }
 .sp-tier-label {
   font-size: 10px;
   font-weight: 700;
-  letter-spacing: 0.8px;
+  letter-spacing: 1px;
   text-transform: uppercase;
 }
 .sp-tier-content {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 5px;
 }
 
 /* Player chip */
 .sp-player-chip {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   background: rgba(255,255,255,0.05);
-  border-radius: 6px;
-  padding: 4px 8px;
-  font-size: 12px;
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 7px;
+  padding: 6px 10px;
+  font-size: 13px;
 }
 .sp-chip-score {
   font-size: 11px;
   font-weight: 700;
-  width: 32px;
+  width: 34px;
   flex-shrink: 0;
   text-align: right;
 }
@@ -2635,7 +2699,7 @@ html, body {
   border: none;
   color: var(--text-muted);
   cursor: pointer;
-  font-size: 14px;
+  font-size: 16px;
   line-height: 1;
   padding: 0 2px;
   flex-shrink: 0;
@@ -2646,16 +2710,16 @@ html, body {
 /* Add button */
 .sp-add-btn {
   background: none;
-  border: 1px dashed var(--tier-color, rgba(255,255,255,0.2));
+  border: 1px dashed color-mix(in srgb, var(--tier-color, #aaa) 40%, transparent);
   color: var(--tier-color, var(--text-muted));
-  border-radius: 6px;
-  padding: 4px 8px;
-  font-size: 11px;
+  border-radius: 7px;
+  padding: 6px 10px;
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
   text-align: left;
   transition: background 0.15s, opacity 0.15s;
-  opacity: 0.7;
+  opacity: 0.65;
 }
 .sp-add-btn:hover {
   background: rgba(255,255,255,0.04);
@@ -2666,8 +2730,8 @@ html, body {
 .sp-popover {
   position: fixed;
   z-index: 2000;
-  width: 300px;
-  max-height: 380px;
+  width: 310px;
+  max-height: 400px;
   display: flex;
   flex-direction: column;
   background: var(--bg-glass2);
@@ -2704,13 +2768,13 @@ html, body {
   background: rgba(0,242,254,0.07);
 }
 .sp-pop-disabled {
-  opacity: 0.45;
+  opacity: 0.4;
   cursor: not-allowed;
 }
 .sp-pop-score {
   font-size: 11px;
   font-weight: 700;
-  width: 32px;
+  width: 34px;
   text-align: right;
   flex-shrink: 0;
 }
@@ -2744,15 +2808,6 @@ html, body {
   gap: 10px;
   align-items: center;
 }
-.market-noplan-icon {
-  font-size: 32px;
-  margin-bottom: 4px;
-}
-.market-noplan-msg strong {
-  font-size: 14px;
-  color: var(--text-main);
-}
-.market-noplan-msg .muted {
-  font-size: 12px;
-  line-height: 1.6;
-}
+.market-noplan-icon { font-size: 32px; margin-bottom: 4px; }
+.market-noplan-msg strong { font-size: 14px; color: var(--text-main); }
+.market-noplan-msg .muted { font-size: 12px; line-height: 1.6; }

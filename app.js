@@ -2684,27 +2684,59 @@ function removeFromPlanTier(nodeId, tier, playerId) {
 
 /* ── Squad Plan render ────────────────────────────────────────────────────── */
 
+let _spSelectedNodeId = null;
+
 function renderSquadPlan() {
-  const container = document.getElementById('sp-node-grid');
+  renderSpPitch();
+  const node = _spSelectedNodeId != null
+    ? state.nodes.find(n => n.id === _spSelectedNodeId)
+    : null;
+  if (node) renderSpPanel(node);
+  else      showSpPlaceholder();
+}
+
+function renderSpPitch() {
+  const container = document.getElementById('sp-pitch-nodes');
   if (!container) return;
 
   const nodes = state.nodes.filter(n => n.role);
-  if (nodes.length === 0) {
-    container.innerHTML = '<p class="muted sp-empty">Nessun ruolo configurato nel Tactical Pitch.<br>Imposta la formazione e assegna i ruoli ai nodi prima di pianificare la rosa.</p>';
-    return;
-  }
+  container.innerHTML = nodes.map(node => {
+    const plan = getNodePlan(node.id);
+    const hasStarter = plan.starter != null;
+    const hasAny    = hasStarter
+      || (plan.bench  || []).length > 0
+      || (plan.third  || []).length > 0
+      || (plan.youth  || []).length > 0;
+    const statusCls  = hasStarter ? 'sp-node--starter'
+                     : hasAny    ? 'sp-node--partial'
+                     :             '';
+    const selectedCls = node.id === _spSelectedNodeId ? 'sp-node--selected' : '';
+    return `<div class="sp-pitch-node ${statusCls} ${selectedCls}"
+                 style="left:${node.x}%;top:${node.y}%"
+                 data-node-id="${node.id}">
+      ${shortRole(node.role)}
+    </div>`;
+  }).join('');
 
-  const sorted = [...nodes].sort((a, b) => {
-    const za = getZoneKey(a.x, a.y), zb = getZoneKey(b.x, b.y);
-    const ia = SP_ZONE_ORDER.indexOf(za), ib = SP_ZONE_ORDER.indexOf(zb);
-    return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || a.x - b.x;
+  container.querySelectorAll('.sp-pitch-node').forEach(el => {
+    el.addEventListener('click', () => {
+      _spSelectedNodeId = parseInt(el.dataset.nodeId);
+      renderSquadPlan();
+    });
   });
-
-  container.innerHTML = sorted.map(node => renderSpCard(node)).join('');
-  bindSpCards();
 }
 
-function renderSpCard(node) {
+function showSpPlaceholder() {
+  document.getElementById('sp-panel-placeholder')?.classList.remove('hidden');
+  document.getElementById('sp-panel-content')?.classList.add('hidden');
+}
+
+function renderSpPanel(node) {
+  document.getElementById('sp-panel-placeholder')?.classList.add('hidden');
+  const content = document.getElementById('sp-panel-content');
+  if (!content) return;
+  content.classList.remove('hidden');
+
   const plan     = getNodePlan(node.id);
   const zoneKey  = getZoneKey(node.x, node.y);
   const zoneLabel = ZONE_ROLES[zoneKey]?.label || zoneKey;
@@ -2721,8 +2753,8 @@ function renderSpCard(node) {
       const scoreColor = score >= 70 ? '#39ff14' : score >= 50 ? '#00e5ff' : '#aaa';
       return `<div class="sp-player-chip">
         <span class="sp-chip-score" style="color:${scoreColor}">${score}%</span>
-        <span class="sp-chip-name">${truncate(player.name, 15)}</span>
-        <button class="sp-chip-remove" data-node="${node.id}" data-tier="${key}" data-pid="${pid}" title="Rimuovi">×</button>
+        <span class="sp-chip-name">${truncate(player.name, 20)}</span>
+        <button class="sp-chip-remove" data-node="${node.id}" data-tier="${key}" data-pid="${pid}">×</button>
       </div>`;
     }).join('');
 
@@ -2737,20 +2769,18 @@ function renderSpCard(node) {
     </div>`;
   }).join('');
 
-  return `<div class="sp-card" data-node-id="${node.id}">
-    <div class="sp-card-head">
+  content.innerHTML = `
+    <div class="sp-panel-header">
       <span class="sp-role-badge">${shortRole(node.role)}</span>
       <div class="sp-card-info">
         <span class="sp-role-name">${node.role}</span>
         <span class="sp-zone-label">${zoneLabel}</span>
       </div>
     </div>
-    ${tiersHtml}
-  </div>`;
-}
+    <div class="sp-panel-tiers">${tiersHtml}</div>
+  `;
 
-function bindSpCards() {
-  document.querySelectorAll('.sp-chip-remove').forEach(btn => {
+  content.querySelectorAll('.sp-chip-remove').forEach(btn => {
     btn.addEventListener('click', e => {
       e.stopPropagation();
       removeFromPlanTier(parseInt(btn.dataset.node), btn.dataset.tier, parseInt(btn.dataset.pid));
@@ -2760,7 +2790,7 @@ function bindSpCards() {
     });
   });
 
-  document.querySelectorAll('.sp-add-btn').forEach(btn => {
+  content.querySelectorAll('.sp-add-btn').forEach(btn => {
     btn.addEventListener('click', e => {
       e.stopPropagation();
       openSpPopover(parseInt(btn.dataset.node), btn.dataset.tier, btn);
