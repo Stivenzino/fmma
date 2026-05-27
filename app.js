@@ -139,13 +139,13 @@ const ROLE_ATTRS = {
     sec: ['Positioning','Pace','Strength'],
   },
   'Roaming Playmaker': {
-    key: ['Passing','Technique','Stamina'],
-    imp: ['Creativity','Dribbling','Pace'],
+    key: ['Passing','Technique','Creativity'],
+    imp: ['Stamina','Dribbling','Pace'],
     sec: ['Decisions','Movement','Teamwork'],
   },
   'Box-to-Box Midfielder': {
-    key: ['Stamina','Movement','Tackling'],
-    imp: ['Passing','Strength','Pace'],
+    key: ['Stamina','Passing','Tackling'],
+    imp: ['Movement','Strength','Pace'],
     sec: ['Shooting','Decisions','Teamwork'],
   },
 
@@ -225,8 +225,8 @@ const ROLE_ATTRS = {
     sec: ['Decisions','Passing','Leadership'],
   },
   'Complete Forward': {
-    key: ['Shooting','Strength','Pace'],
-    imp: ['Movement','Technique','Dribbling'],
+    key: ['Shooting','Technique','Pace'],
+    imp: ['Movement','Strength','Dribbling'],
     sec: ['Aerial','Decisions','Passing'],
   },
   'Pressing Forward': {
