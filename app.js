@@ -619,23 +619,24 @@ function getPlayerFamLevel(player, zoneKey, nodeX) {
   return player.positions[`${cell.key}_${cell.r}_${cell.c}`] || 0;
 }
 
-/* Returns true if the player has fam ≥ 1 in at least one zone that contains
-   the given role. For wide zones checks both L and R sides so a player with
-   only right-wing familiarity still appears for a left-side role and vice-versa. */
-function playerHasFamiliarityForRole(player, role) {
-  if (!player?.positions) return false;
-  for (const [zoneKey, { roles }] of Object.entries(ZONE_ROLES)) {
-    if (!roles.includes(role)) continue;
-    // Centre zones: check once
-    if (zoneKey === 'GK' || zoneKey.endsWith('_C')) {
-      if (getPlayerFamLevel(player, zoneKey, 50) >= 1) return true;
-    } else {
-      // Wide zones: accept fam on either side (planning context — side isn't fixed)
-      if (getPlayerFamLevel(player, zoneKey, 10) >= 1) return true;  // _L
-      if (getPlayerFamLevel(player, zoneKey, 90) >= 1) return true;  // _R
+/* Derives the set of playable roles from the player's actual familiarity cells.
+   Starts from what the player CAN play (their positions), not from the target role.
+   ATT_W has no dedicated mini-pitch cell — AM_W familiarity covers it too. */
+function getPlayableRoles(player) {
+  const roles = new Set();
+  if (!player?.positions) return roles;
+  MINI_CELLS.forEach(cell => {
+    const posKey = `${cell.key}_${cell.r}_${cell.c}`;
+    if ((player.positions[posKey] || 0) < 1) return;
+    // Strip _L/_R suffix to get the base zone key (e.g. 'AM_W_L' → 'AM_W')
+    const zoneKey = cell.key.replace(/_[LR]$/, '');
+    (ZONE_ROLES[zoneKey]?.roles || []).forEach(r => roles.add(r));
+    // AM_W familiarity also covers ATT_W (no separate ATT wide cell in mini-pitch)
+    if (zoneKey === 'AM_W') {
+      (ZONE_ROLES['ATT_W']?.roles || []).forEach(r => roles.add(r));
     }
-  }
-  return false;
+  });
+  return roles;
 }
 
 /* ─── DRAG & DROP (nodes on pitch) ─────────────────────────────────────── */
@@ -2834,7 +2835,7 @@ function openSpPopover(nodeId, tier, anchorEl) {
   const candidates = state.squad
     .filter(p => !p.isScoutTarget
       && isCompatible(p, node.role)
-      && playerHasFamiliarityForRole(p, node.role))
+      && getPlayableRoles(p).has(node.role))
     .map(p => ({
       player: p,
       score:  rawRoleScore(p, node.role),
