@@ -2935,7 +2935,7 @@ function renderSpPanel(node) {
     const otherHTML = otherAssignments.length
       ? `<span class="sp-cand-other">${otherAssignments.map(a => {
           const tierMeta = SP_TIERS.find(t => t.key === a.tier);
-          return `<span class="sp-cand-other-badge" style="--tier-color:${tierMeta.color}" title="${tierMeta.label} — ${a.role}">${SP_TIER_SHORT[a.tier]}&thinsp;${shortRole(a.role)}</span>`;
+          return `<span class="sp-cand-other-badge" style="--tier-color:${tierMeta.color}">${tierMeta.label} · ${a.role}</span>`;
         }).join('')}</span>`
       : '';
 
@@ -2945,7 +2945,8 @@ function renderSpPanel(node) {
       <div class="sp-cand-fam" style="background:${famColor}" title="${FAM_LABELS[famLevel]}"></div>
       <div class="sp-cand-info">
         <span class="sp-cand-name">${player.name}</span>
-        <span class="sp-cand-meta">${player.age || '?'} · <span style="color:${famColor}">${FAM_LABELS[famLevel]}</span>${otherHTML}</span>
+        <span class="sp-cand-meta">${player.age || '?'} · <span style="color:${famColor}">${FAM_LABELS[famLevel]}</span></span>
+        ${otherHTML}
       </div>
       <span class="sp-cand-score" style="color:${scoreColor}">${score}%</span>
       <div class="sp-cand-actions">${actionHTML}</div>
