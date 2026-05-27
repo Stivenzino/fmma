@@ -639,6 +639,28 @@ function getPlayableRoles(player) {
   return roles;
 }
 
+/* Returns the effective familiarity level for Squad Plan purposes.
+   Wide zones consider BOTH flanks — a player known as LW can cover the RW node. */
+function getEffectiveFamLevel(player, node) {
+  const zoneKey = getZoneKey(node.x, node.y);
+  if (zoneKey !== 'GK' && !zoneKey.endsWith('_C')) {
+    const leftFam  = getPlayerFamLevel(player, zoneKey, 10);   // left side
+    const rightFam = getPlayerFamLevel(player, zoneKey, 90);   // right side
+    return Math.max(leftFam, rightFam);
+  }
+  return getPlayerFamLevel(player, zoneKey, node.x);
+}
+
+/* Familiarity-weighted role score (0–100%), or null if the player has no
+   familiarity for this node's zone (fam = 0 → ineligible). */
+function squadPlanScore(player, node) {
+  if (!node.role || !isCompatible(player, node.role)) return null;
+  const famLevel = getEffectiveFamLevel(player, node);
+  if (famLevel < 1) return null;
+  const raw = rawRoleScore(player, node.role);
+  return Math.max(0, Math.round(raw - FAM_PENALTY[famLevel]));
+}
+
 /* ─── DRAG & DROP (nodes on pitch) ─────────────────────────────────────── */
 function makeDraggableNode(el, node) {
   let startX, startY, startLeft, startTop, isDragging = false;
@@ -1171,7 +1193,7 @@ function recomputeAutoTarget() {
       if (!starterId) return null;
       const player = state.squad.find(p => p.id === starterId);
       if (!player) return null;
-      return rawRoleScore(player, node.role);
+      return scorePlayerForNode(player, node);
     }).filter(s => s !== null);
     if (scores.length > 0) {
       state.targetBenchmark = Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
@@ -2157,15 +2179,15 @@ function computeMarketData() {
       ? state.squad.find(p => p.id === plan.starter && !p.isScoutTarget)
       : null;
     const starter = starterPlayer
-      ? { player: starterPlayer, score: rawRoleScore(starterPlayer, node.role) }
+      ? { player: starterPlayer, score: scorePlayerForNode(starterPlayer, node) }
       : null;
 
-    // Best backup: highest rawRoleScore among bench + third + youth
+    // Best backup: highest fam-weighted score among bench + third + youth
     const backupIds = [...(plan.bench || []), ...(plan.third || []), ...(plan.youth || [])];
     const backup = backupIds
       .map(id => state.squad.find(p => p.id === id && !p.isScoutTarget))
       .filter(Boolean)
-      .map(p => ({ player: p, score: rawRoleScore(p, node.role) }))
+      .map(p => ({ player: p, score: scorePlayerForNode(p, node) }))
       .sort((a, b) => b.score - a.score)[0] || null;
 
     const isHighUrgency = !starter || starter.score < starterThreshold;
@@ -2757,37 +2779,22 @@ function renderSpPanel(node) {
   if (!content) return;
   content.classList.remove('hidden');
 
-  const plan     = getNodePlan(node.id);
-  const zoneKey  = getZoneKey(node.x, node.y);
+  const plan      = getNodePlan(node.id);
+  const zoneKey   = getZoneKey(node.x, node.y);
   const zoneLabel = ZONE_ROLES[zoneKey]?.label || zoneKey;
 
-  const tiersHtml = SP_TIERS.map(({ key, label, max, color }) => {
-    const currentIds = key === 'starter'
-      ? (plan.starter != null ? [plan.starter] : [])
-      : (plan[key] || []);
-
-    const chips = currentIds.map(pid => {
-      const player = state.squad.find(p => p.id === pid);
-      if (!player) return '';
-      const score = rawRoleScore(player, node.role);
-      const scoreColor = score >= 70 ? '#39ff14' : score >= 50 ? '#00e5ff' : '#aaa';
-      return `<div class="sp-player-chip">
-        <span class="sp-chip-score" style="color:${scoreColor}">${score}%</span>
-        <span class="sp-chip-name">${truncate(player.name, 20)}</span>
-        <button class="sp-chip-remove" data-node="${node.id}" data-tier="${key}" data-pid="${pid}">×</button>
-      </div>`;
-    }).join('');
-
-    const canAdd = max === null || currentIds.length < max;
-    const addBtn = canAdd
-      ? `<button class="sp-add-btn" data-node="${node.id}" data-tier="${key}" style="--tier-color:${color}">+ ${label}</button>`
-      : '';
-
-    return `<div class="sp-tier" data-tier="${key}">
-      <div class="sp-tier-label" style="color:${color}">${label}</div>
-      <div class="sp-tier-content">${chips}${addBtn}</div>
-    </div>`;
-  }).join('');
+  // Build sorted candidate list: all players with fam ≥ 1 for this node's zone
+  const candidates = state.squad
+    .filter(p => !p.isScoutTarget)
+    .map(p => {
+      const score = squadPlanScore(p, node);
+      if (score === null) return null;
+      const famLevel = getEffectiveFamLevel(p, node);
+      const tier     = playerTierOnNode(node.id, p.id);
+      return { player: p, score, famLevel, tier };
+    })
+    .filter(Boolean)
+    .sort((a, b) => b.score - a.score);
 
   content.innerHTML = `
     <div class="sp-panel-header">
@@ -2797,98 +2804,88 @@ function renderSpPanel(node) {
         <span class="sp-zone-label">${zoneLabel}</span>
       </div>
     </div>
-    <div class="sp-panel-tiers">${tiersHtml}</div>
+    <div class="sp-candidates-list" id="sp-candidates-list"></div>
   `;
 
-  content.querySelectorAll('.sp-chip-remove').forEach(btn => {
-    btn.addEventListener('click', e => {
-      e.stopPropagation();
-      removeFromPlanTier(parseInt(btn.dataset.node), btn.dataset.tier, parseInt(btn.dataset.pid));
-      saveState();
-      maybeRenderMarket();
-      renderSquadPlan();
-    });
-  });
+  const listEl = content.querySelector('#sp-candidates-list');
 
-  content.querySelectorAll('.sp-add-btn').forEach(btn => {
-    btn.addEventListener('click', e => {
-      e.stopPropagation();
-      openSpPopover(parseInt(btn.dataset.node), btn.dataset.tier, btn);
-    });
-  });
-}
+  if (candidates.length === 0) {
+    listEl.innerHTML = '<p class="muted" style="padding:16px 12px;font-size:13px">Nessun giocatore compatibile con questo ruolo.</p>';
+    return;
+  }
 
-/* ── Squad Plan assignment popover ────────────────────────────────────────── */
+  candidates.forEach(({ player, score, famLevel, tier }) => {
+    const scoreColor     = score >= 70 ? '#39ff14' : score >= 50 ? '#00e5ff' : '#aaa';
+    const famColor       = FAM_COLORS[famLevel];
+    const starterNodeId  = findPlayerAsStarter(player.id);
+    const isStarterElsewhere = !tier && starterNodeId !== null && starterNodeId !== node.id;
+    const starterSlotFull    = !tier && plan.starter !== null;
 
-function openSpPopover(nodeId, tier, anchorEl) {
-  _spPopoverState = { nodeId, tier };
-  const node = state.nodes.find(n => n.id === nodeId);
-  if (!node) return;
-
-  const popover = document.getElementById('sp-popover');
-  const title   = document.getElementById('sp-popover-title');
-  const list    = document.getElementById('sp-popover-list');
-
-  const tierMeta = SP_TIERS.find(t => t.key === tier);
-  title.textContent = `${tierMeta?.label || tier} — ${node.role}`;
-
-  const candidates = state.squad
-    .filter(p => !p.isScoutTarget
-      && isCompatible(p, node.role)
-      && getPlayableRoles(p).has(node.role))
-    .map(p => ({
-      player: p,
-      score:  rawRoleScore(p, node.role),
-      reason: canAssignToTier(nodeId, tier, p.id),
-    }))
-    .sort((a, b) => (a.reason ? 1 : 0) - (b.reason ? 1 : 0) || b.score - a.score);
-
-  list.innerHTML = candidates.length === 0
-    ? '<p class="muted" style="padding:12px 16px">Nessun giocatore compatibile disponibile.</p>'
-    : candidates.map(({ player, score, reason }) => {
-        const scoreColor = score >= 70 ? '#39ff14' : score >= 50 ? '#00e5ff' : '#aaa';
-        return `<div class="sp-popover-item${reason ? ' sp-pop-disabled' : ''}" data-pid="${player.id}">
-          <span class="sp-pop-score" style="color:${scoreColor}">${score}%</span>
-          <div class="sp-pop-info">
-            <span class="sp-pop-name">${player.name}</span>
-            ${reason ? `<span class="sp-pop-reason">${reason}</span>` : ''}
-          </div>
-        </div>`;
+    let actionHTML;
+    if (tier) {
+      const tierMeta = SP_TIERS.find(t => t.key === tier);
+      actionHTML = `
+        <span class="sp-assigned-badge" style="color:${tierMeta.color}">${tierMeta.label}</span>
+        <button class="sp-candidate-remove" data-pid="${player.id}" data-tier="${tier}" title="Rimuovi">×</button>`;
+    } else if (isStarterElsewhere) {
+      const sNode = state.nodes.find(n => n.id === starterNodeId);
+      actionHTML = `<span class="sp-candidate-blocked" title="Titolare di ${sNode?.role || 'altro ruolo'}">🔒</span>`;
+    } else {
+      const tierBtns = SP_TIERS.map(t => {
+        const label    = t.key === 'starter' ? 'T' : t.key === 'bench' ? 'P' : t.key === 'third' ? '3' : 'G';
+        const disabled = t.key === 'starter' && starterSlotFull;
+        return `<button class="sp-tier-btn${disabled ? ' sp-tier-btn--disabled' : ''}"
+          data-tier="${t.key}" data-pid="${player.id}"
+          title="${t.label}${disabled ? ' (slot pieno)' : ''}"
+          style="--tier-color:${t.color}"
+          ${disabled ? 'disabled' : ''}>${label}</button>`;
       }).join('');
+      actionHTML = `<div class="sp-tier-btns">${tierBtns}</div>`;
+    }
 
-  // Bind clicks only on eligible items
-  list.querySelectorAll('.sp-popover-item:not(.sp-pop-disabled)').forEach(item => {
-    item.addEventListener('click', () => {
-      assignToPlan(nodeId, tier, parseInt(item.dataset.pid));
+    const row = document.createElement('div');
+    row.className = 'sp-candidate-row' + (tier ? ` sp-cand--${tier}` : '');
+    row.innerHTML = `
+      <div class="sp-cand-fam" style="background:${famColor}" title="${FAM_LABELS[famLevel]}"></div>
+      <div class="sp-cand-info">
+        <span class="sp-cand-name">${player.name}</span>
+        <span class="sp-cand-meta">${player.age || '?'} · ${FAM_LABELS[famLevel]}</span>
+      </div>
+      <span class="sp-cand-score" style="color:${scoreColor}">${score}%</span>
+      <div class="sp-cand-actions">${actionHTML}</div>
+    `;
+
+    row.querySelectorAll('.sp-tier-btn:not([disabled])').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const pid     = parseInt(btn.dataset.pid);
+        const tierKey = btn.dataset.tier;
+        const err     = canAssignToTier(node.id, tierKey, pid);
+        if (err) return;
+        assignToPlan(node.id, tierKey, pid);
+        saveState();
+        maybeRenderMarket();
+        renderSquadPlan();
+      });
+    });
+
+    row.querySelector('.sp-candidate-remove')?.addEventListener('click', e => {
+      e.stopPropagation();
+      const btn = e.currentTarget;
+      removeFromPlanTier(node.id, btn.dataset.tier, parseInt(btn.dataset.pid));
       saveState();
       maybeRenderMarket();
       renderSquadPlan();
-      closeSpPopover();
     });
-  });
 
-  // Position near the button
-  const rect = anchorEl.getBoundingClientRect();
-  const top  = rect.bottom + window.scrollY + 4;
-  const left = Math.min(rect.left + window.scrollX, window.innerWidth - 300);
-  popover.style.top  = top  + 'px';
-  popover.style.left = left + 'px';
-  popover.classList.remove('hidden');
-}
-
-function closeSpPopover() {
-  document.getElementById('sp-popover')?.classList.add('hidden');
-  _spPopoverState = null;
-}
-
-function bindSpPopover() {
-  document.getElementById('sp-popover-close')?.addEventListener('click', closeSpPopover);
-  document.addEventListener('click', e => {
-    const popover = document.getElementById('sp-popover');
-    if (!popover || popover.classList.contains('hidden')) return;
-    if (!popover.contains(e.target) && !e.target.closest('.sp-add-btn')) closeSpPopover();
+    listEl.appendChild(row);
   });
 }
+
+/* ── Squad Plan popover — replaced by inline candidate list ──────────────── */
+
+function openSpPopover()  { /* deprecated */ }
+function closeSpPopover() { }
+function bindSpPopover()  { }
 
 /* ─── MASTERPLAN UPDATE ─────────────────────────────────────────────────── */
 // App fully initialised — no external calls, all data stays in browser RAM.

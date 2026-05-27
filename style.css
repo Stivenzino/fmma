@@ -2647,6 +2647,133 @@ html, body {
   letter-spacing: 0.4px;
 }
 
+/* ── Inline candidate list (replaces tier chips + popover) ─────────────── */
+.sp-candidates-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.sp-candidate-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.05);
+  background: rgba(255,255,255,0.03);
+  transition: background 0.12s;
+}
+.sp-candidate-row:hover { background: rgba(255,255,255,0.06); }
+
+/* Highlighted rows for assigned players */
+.sp-cand--starter { border-color: rgba(57,255,20,0.35);  background: rgba(57,255,20,0.05); }
+.sp-cand--bench   { border-color: rgba(0,229,255,0.3);   background: rgba(0,229,255,0.04); }
+.sp-cand--third   { border-color: rgba(255,223,0,0.3);   background: rgba(255,223,0,0.04); }
+.sp-cand--youth   { border-color: rgba(255,149,0,0.3);   background: rgba(255,149,0,0.04); }
+
+/* Familiarity dot */
+.sp-cand-fam {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* Player info */
+.sp-cand-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.sp-cand-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sp-cand-meta {
+  font-size: 10px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* Score percentage */
+.sp-cand-score {
+  font-size: 12px;
+  font-weight: 700;
+  width: 38px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+/* Action area */
+.sp-cand-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+/* Tier assignment buttons T / P / 3 / G */
+.sp-tier-btns {
+  display: flex;
+  gap: 4px;
+}
+.sp-tier-btn {
+  width: 24px;
+  height: 24px;
+  border-radius: 5px;
+  border: 1px solid color-mix(in srgb, var(--tier-color, #aaa) 50%, transparent);
+  background: color-mix(in srgb, var(--tier-color, #aaa) 10%, transparent);
+  color: var(--tier-color, #aaa);
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.sp-tier-btn:hover {
+  background: color-mix(in srgb, var(--tier-color, #aaa) 25%, transparent);
+}
+.sp-tier-btn--disabled {
+  opacity: 0.25;
+  cursor: not-allowed;
+}
+
+/* Current tier badge + remove */
+.sp-assigned-badge {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+.sp-candidate-remove {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  padding: 0 2px;
+  transition: color 0.15s;
+}
+.sp-candidate-remove:hover { color: #ff4444; }
+
+/* Blocked / locked player */
+.sp-candidate-blocked {
+  font-size: 14px;
+  opacity: 0.6;
+}
+
 /* Tier sections in panel */
 .sp-panel-tiers {
   display: flex;

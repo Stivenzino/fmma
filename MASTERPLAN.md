@@ -283,6 +283,31 @@
   * **File modificati:** `index.html`, `style.css`, `app.js`
   * **Cosa è stato fatto:** Rimosso il div `formation-overview` dall'HTML. `renderFormationOverview()` ora è uno stub che chiama solo `renderBench()` — tutti i call site esistenti continuano a funzionare senza modifiche. CSS `.formation-overview`, `.overview-slots`, `.overview-slot`, `.ov-*` rimossi.
 
+* **2026-05-27 — Nuova tab Squad Plan + refactor Market/Scout su fonte dati esplicita**
+  * **File modificati:** `app.js`, `index.html`, `style.css`
+  * **Cosa è stato fatto:**
+    - Nuovo `state.plan = {}` — `{ [nodeId]: { starter: id|null, bench: [], third: [], youth: [] } }`.
+    - Persistito in localStorage e incluso in export/import.
+    - Nuova tab "Squad Plan": griglia di card, una per nodo della formazione, ordinate GK→DEF→DM→CM→AM→ATT.
+    - Ogni card ha 4 fasce: Titolare (max 1, esclusivo globale), Panchina, Terza Fascia, Giovani (multi-nodo liberi).
+    - Popover di assegnazione: giocatori ordinati per `rawRoleScore`, ineligibili visibili ma disabilitati con motivo.
+    - Guard regole: Titolare esclusivo globalmente (non assegnabile altrove), una sola fascia per nodo per giocatore.
+    - `computeMarketData()` riscritta: usa `state.plan` invece del greedy bipartite matching.
+    - `recomputeAutoTarget()`: usa i titolari del plan quando configurato; fallback greedy se plan vuoto.
+    - `renderMarket()`: mostra messaggio "configura Squad Plan" se plan non configurato.
+    - `applyFormation()`: chiama `cleanOrphanPlan()` per eliminare entries di nodi rimossi.
+  * **Implicazioni:** Market e Scout ora riflettono le scelte tattiche esplicite dell'utente invece di un calcolo automatico. Il benchmark AUTO usa i titolari del plan. Se il plan è vuoto, Market mostra un messaggio orientativo.
+
+* **2026-05-27 — Fix bug scout verdict: target più debole di starter+backup segnalato come PRIORITARIO**
+  * **File modificati:** `app.js`
+  * **Cosa è stato fatto:**
+    - `computeScoutVerdict` riscritta con logica a 4 gate mutuamente esclusivi che confronta `targetScore` sia con `starterScore` che con `backupScore` (entrambi già presenti in `nodeMarket`).
+    - Gate 1: `targetScore < backupMin` → INSUFFICIENTE (invariato).
+    - Gate 2: `targetScore <= starterScore && targetScore <= backupScore` → SCONSIGLIATO (ridondante) — fix del bug: un target più debole di entrambi non può mai essere consigliato.
+    - Gate 3: `targetScore <= starterScore && targetScore > backupScore` → CONSIGLIATO (profondità) se urgency=high/med, altrimenti SCONSIGLIATO.
+    - Gate 4: `targetScore > starterScore` → PRIORITARIO se urgency=high, altrimenti UPGRADE.
+  * **Implicazioni:** Caso concreto del bug: target 22%, starter 28%, backup 23% → ora correttamente SCONSIGLIATO invece di PRIORITARIO. La logica è ora deterministica e non può produrre verdetti positivi per giocatori più deboli di quelli già in rosa.
+
 * **2026-05-27 — Fix convertAttributeToQuality(0) + analisi incoerenze ROLE_ATTRS**
   * **File modificati:** `app.js`
   * **Cosa è stato fatto:**
@@ -291,6 +316,18 @@
     - `Leadership` confermato come attributo deliberatamente tracciato ma non assegnato a nessun ruolo (scelta intenzionale).
     - Poacher vs Advanced Forward: KEY+IMP identici, solo SEC diversi — comportamento atteso da database FM Mobile.
   * **Implicazioni:** Giocatori con attributi non compilati ora scorano correttamente 0 su quegli attributi invece di 1.
+
+* **2026-05-27 — Squad Plan: lista candidati inline + scoring con familiarità**
+  * **File modificati:** `app.js`, `style.css`
+  * **Cosa è stato fatto:**
+    - Aggiunta `getEffectiveFamLevel(player, node)`: per zone wide prende il MAX tra lato sinistro e destro (un LW può coprire anche il nodo RW e viceversa).
+    - Aggiunta `squadPlanScore(player, node)`: score fam-weighted (rawRoleScore − FAM_PENALTY[effectiveFam]), ritorna null se il giocatore non ha familiarità nella zona (fam=0 → non eleggibile).
+    - `renderSpPanel` completamente riscritta: non usa più tier chips + popover. Mostra una lista inline di tutti i candidati eleggibili ordinata per score decrescente. Ogni riga: dot colorato familiarity, nome, età, livello fam testuale, score %, pulsanti T/P/3/G per assegnare (o badge tier + × se già assegnato, o 🔒 se titolare altrove).
+    - `openSpPopover`/`closeSpPopover`/`bindSpPopover` ridotti a no-op (popover deprecato).
+    - `computeMarketData`: starter e backup ora usano `scorePlayerForNode` (fam-weighted) invece di `rawRoleScore` (solo attributi).
+    - `recomputeAutoTarget` (branch plan): usa `scorePlayerForNode(player, node)` invece di `rawRoleScore` per il benchmark da starters.
+    - CSS: aggiunte classi `.sp-candidates-list`, `.sp-candidate-row`, `.sp-cand--*` (varianti colore per tier), `.sp-cand-fam`, `.sp-cand-info/name/meta/score/actions`, `.sp-tier-btns`, `.sp-tier-btn`, `.sp-assigned-badge`, `.sp-candidate-remove`, `.sp-candidate-blocked`.
+  * **Implicazioni:** La familiarità ora influenza tutti i calcoli (Squad Plan, Market urgency, benchmark). Un giocatore Awkward in un ruolo mostrerà uno score molto ridotto rispetto a Natural, in tutte le viste.
 
 ## 2. In Corso / Da Fare Immediatamente
 
