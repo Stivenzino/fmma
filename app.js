@@ -2945,6 +2945,8 @@ function renderSpPanel(node) {
       renderSquadPlan();
     });
 
+    row.addEventListener('dblclick', () => openModal(player.id));
+
     return row;
   };
 
