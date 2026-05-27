@@ -2486,24 +2486,30 @@ function computeScoutVerdict(targetScore, nodeMarket) {
   const urgency      = nodeMarket?.urgency;
   const starterScore = nodeMarket?.starter?.score ?? 0;
   const hasStarter   = !!nodeMarket?.starter;
+  const delta        = targetScore - starterScore;
 
-  if (targetScore < 55) return {
+  // Dynamic thresholds relative to current category benchmark
+  const benchmark     = state.targetBenchmark;
+  const starterMin    = Math.round(benchmark * 0.85);
+  const backupMin     = Math.round(benchmark * 0.70);
+
+  if (targetScore < backupMin) return {
     label: 'QUALITÀ INSUFFICIENTE', cls: 'verdict-insufficient',
-    desc:  `Punteggio tattico insufficiente (${targetScore}%). La soglia minima consigliata è 55%.`,
+    desc:  `Il giocatore non soddisfa lo standard minimo di categoria per questa rosa (${targetScore}% vs min. richiesto ${backupMin}%).`,
   };
-  if (urgency === 'high' && targetScore >= 65) return {
+  if (urgency === 'high' && targetScore >= starterMin) return {
     label: 'ACQUISTO PRIORITARIO', cls: 'verdict-priority',
-    desc:  `Il ruolo non ha un titolare adeguato e il giocatore supera la soglia di qualità (${targetScore}%). Acquisto ad alta priorità.`,
+    desc:  `Il ruolo non ha un titolare adeguato e il giocatore supera lo standard di categoria (${targetScore}% vs soglia ${starterMin}%). Acquisto ad alta priorità.`,
   };
-  if (urgency === 'med' && targetScore >= 55) return {
+  if (urgency === 'med' && targetScore >= backupMin) return {
     label: 'ACQUISTO CONSIGLIATO', cls: 'verdict-recommended',
     desc:  `La copertura del ruolo è insufficiente. Il giocatore (${targetScore}%) rappresenta una buona aggiunta in profondità.`,
   };
-  if (hasStarter && targetScore > starterScore + 3) return {
+  if (urgency === 'low' && targetScore >= starterMin && delta >= 3) return {
     label: 'UPGRADE DI QUALITÀ', cls: 'verdict-upgrade',
-    desc:  `Il giocatore (${targetScore}%) supera il titolare attuale (${starterScore}%) di ${targetScore - starterScore} punti. Upgrade consigliato.`,
+    desc:  `Il giocatore (${targetScore}%) supera il titolare attuale (${starterScore}%) di ${delta} punti. Upgrade consigliato.`,
   };
-  if (hasStarter) return {
+  if (targetScore >= backupMin && delta < 0) return {
     label: 'SCONSIGLIATO', cls: 'verdict-redundant',
     desc:  `Il titolare attuale (${starterScore}%) copre già adeguatamente questo ruolo. L'acquisto sarebbe ridondante.`,
   };

@@ -2,6 +2,14 @@
 
 ## 1. Modifiche Effettuate (Cronologia recente)
 
+* **2026-05-27 — Scout verdict dinamico relativo al benchmark di categoria**
+  * **File modificati:** `app.js`
+  * **Cosa è stato fatto:**
+    - `computeScoutVerdict`: rimossi threshold fissi (55%/65%). Calcolati dinamicamente: `starterMin = benchmark * 0.85`, `backupMin = benchmark * 0.70`.
+    - Logica verdetti aggiornata: INSUFFICIENTE se `< backupMin`, PRIORITARIO se `>= starterMin + urgency high`, CONSIGLIATO se `>= backupMin + urgency med`, UPGRADE se `urgency low + >= starterMin + delta >= 3`, SCONSIGLIATO se `>= backupMin + delta < 0`.
+    - Testo diagnosi aggiornato con valori dinamici.
+  * **Implicazioni:** Coerente con la logica del Market tab. Un giocatore al 26% è prioritario per una squadra con benchmark 25%, mentre è insufficiente per benchmark 75%.
+
 * **2026-05-26 — Vista Rosa: sort, score%, benchmark rosa, rimozione Top 5 Attrs**
   * **File modificati:** `index.html`, `app.js`, `style.css`
   * **Cosa è stato fatto:**
