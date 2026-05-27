@@ -2488,37 +2488,45 @@ function renderScoutAnalysisBody(target, compatibleOpts) {
 function computeScoutVerdict(targetScore, nodeMarket) {
   const urgency      = nodeMarket?.urgency;
   const starterScore = nodeMarket?.starter?.score ?? 0;
-  const hasStarter   = !!nodeMarket?.starter;
-  const delta        = targetScore - starterScore;
+  const backupScore  = nodeMarket?.backup?.score  ?? 0;
 
   // Dynamic thresholds relative to current category benchmark
-  const benchmark     = state.targetBenchmark;
-  const starterMin    = Math.round(benchmark * 0.85);
-  const backupMin     = Math.round(benchmark * 0.70);
+  const benchmark  = state.targetBenchmark;
+  const starterMin = Math.round(benchmark * 0.85);
+  const backupMin  = Math.round(benchmark * 0.70);
 
+  // 1. Below the minimum standard for this category — always disqualified
   if (targetScore < backupMin) return {
     label: 'QUALITÀ INSUFFICIENTE', cls: 'verdict-insufficient',
-    desc:  `Il giocatore non soddisfa lo standard minimo di categoria per questa rosa (${targetScore}% vs min. richiesto ${backupMin}%).`,
+    desc:  `Il giocatore non soddisfa lo standard minimo di categoria (${targetScore}% vs min. ${backupMin}%). Non adatto alla rosa.`,
   };
-  if (urgency === 'high' && targetScore >= starterMin) return {
-    label: 'ACQUISTO PRIORITARIO', cls: 'verdict-priority',
-    desc:  `Il ruolo non ha un titolare adeguato e il giocatore supera lo standard di categoria (${targetScore}% vs soglia ${starterMin}%). Acquisto ad alta priorità.`,
-  };
-  if (urgency === 'med' && targetScore >= backupMin) return {
-    label: 'ACQUISTO CONSIGLIATO', cls: 'verdict-recommended',
-    desc:  `La copertura del ruolo è insufficiente. Il giocatore (${targetScore}%) rappresenta una buona aggiunta in profondità.`,
-  };
-  if (urgency === 'low' && targetScore >= starterMin && delta >= 3) return {
-    label: 'UPGRADE DI QUALITÀ', cls: 'verdict-upgrade',
-    desc:  `Il giocatore (${targetScore}%) supera il titolare attuale (${starterScore}%) di ${delta} punti. Upgrade consigliato.`,
-  };
-  if (targetScore >= backupMin && delta < 0) return {
+
+  // 2. Weaker than BOTH starter and backup already in squad — redundant regardless of urgency
+  if (targetScore <= starterScore && targetScore <= backupScore) return {
     label: 'SCONSIGLIATO', cls: 'verdict-redundant',
-    desc:  `Il titolare attuale (${starterScore}%) copre già adeguatamente questo ruolo. L'acquisto sarebbe ridondante.`,
+    desc:  `La rosa copre già questo ruolo con giocatori più forti: titolare ${starterScore}%, riserva ${backupScore}%. L'acquisto (${targetScore}%) sarebbe ridondante.`,
+  };
+
+  // 3. Better than backup but not starter — viable depth signing if need exists
+  if (targetScore <= starterScore && targetScore > backupScore) {
+    if (urgency === 'high' || urgency === 'med') return {
+      label: 'ACQUISTO CONSIGLIATO', cls: 'verdict-recommended',
+      desc:  `Il giocatore (${targetScore}%) migliora la copertura in profondità: supera la riserva attuale (${backupScore}%) ma rimane sotto il titolare (${starterScore}%).`,
+    };
+    return {
+      label: 'SCONSIGLIATO', cls: 'verdict-redundant',
+      desc:  `Il titolare (${starterScore}%) copre già adeguatamente il ruolo e la necessità di riserva non è urgente. L'acquisto (${targetScore}%) non è prioritario.`,
+    };
+  }
+
+  // 4. Clear upgrade over the current starter
+  if (urgency === 'high') return {
+    label: 'ACQUISTO PRIORITARIO', cls: 'verdict-priority',
+    desc:  `Il ruolo è scoperto e il giocatore (${targetScore}%) supera lo standard richiesto (soglia ${starterMin}%). Acquisto ad alta priorità.`,
   };
   return {
-    label: 'ACQUISTO CONSIGLIATO', cls: 'verdict-recommended',
-    desc:  `Il ruolo non ha un titolare assegnato. Il giocatore (${targetScore}%) rappresenta una valida aggiunta alla rosa.`,
+    label: 'UPGRADE DI QUALITÀ', cls: 'verdict-upgrade',
+    desc:  `Il giocatore (${targetScore}%) supera il titolare attuale (${starterScore}%) di ${targetScore - starterScore} punti. Upgrade consigliato.`,
   };
 }
 
