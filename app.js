@@ -619,6 +619,25 @@ function getPlayerFamLevel(player, zoneKey, nodeX) {
   return player.positions[`${cell.key}_${cell.r}_${cell.c}`] || 0;
 }
 
+/* Returns true if the player has fam ≥ 1 in at least one zone that contains
+   the given role. For wide zones checks both L and R sides so a player with
+   only right-wing familiarity still appears for a left-side role and vice-versa. */
+function playerHasFamiliarityForRole(player, role) {
+  if (!player?.positions) return false;
+  for (const [zoneKey, { roles }] of Object.entries(ZONE_ROLES)) {
+    if (!roles.includes(role)) continue;
+    // Centre zones: check once
+    if (zoneKey === 'GK' || zoneKey.endsWith('_C')) {
+      if (getPlayerFamLevel(player, zoneKey, 50) >= 1) return true;
+    } else {
+      // Wide zones: accept fam on either side (planning context — side isn't fixed)
+      if (getPlayerFamLevel(player, zoneKey, 10) >= 1) return true;  // _L
+      if (getPlayerFamLevel(player, zoneKey, 90) >= 1) return true;  // _R
+    }
+  }
+  return false;
+}
+
 /* ─── DRAG & DROP (nodes on pitch) ─────────────────────────────────────── */
 function makeDraggableNode(el, node) {
   let startX, startY, startLeft, startTop, isDragging = false;
@@ -2812,12 +2831,10 @@ function openSpPopover(nodeId, tier, anchorEl) {
   const tierMeta = SP_TIERS.find(t => t.key === tier);
   title.textContent = `${tierMeta?.label || tier} — ${node.role}`;
 
-  const zoneKey = getZoneKey(node.x, node.y);
-
   const candidates = state.squad
     .filter(p => !p.isScoutTarget
       && isCompatible(p, node.role)
-      && getPlayerFamLevel(p, zoneKey, node.x) >= 1)
+      && playerHasFamiliarityForRole(p, node.role))
     .map(p => ({
       player: p,
       score:  rawRoleScore(p, node.role),
