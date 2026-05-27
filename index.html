@@ -20,6 +20,7 @@
   <nav class="topbar-tabs">
     <button class="tab-btn active" data-tab="pitch">Tactical Pitch</button>
     <button class="tab-btn" data-tab="squad">Squad</button>
+    <button class="tab-btn" data-tab="squad-plan">Squad Plan</button>
     <button class="tab-btn" data-tab="market">Market</button>
     <button class="tab-btn" data-tab="scout">Scout &amp; Compare</button>
   </nav>
@@ -186,6 +187,22 @@
           <tbody id="squad-tbody"></tbody>
         </table>
       </div>
+    </div>
+  </section>
+
+
+  <!-- ══════════════════════════════════════════════════════════════════════
+       TAB: SQUAD PLAN
+  ══════════════════════════════════════════════════════════════════════ -->
+  <section class="tab-panel" id="tab-squad-plan">
+    <div class="sp-shell glass">
+      <div class="sp-page-header">
+        <div>
+          <h2>Squad Plan</h2>
+          <p class="sp-header-hint muted">Assegna i giocatori a ogni ruolo della formazione per fascia: Titolare, Panchina, Terza Fascia, Giovani.</p>
+        </div>
+      </div>
+      <div id="sp-node-grid" class="sp-node-grid"></div>
     </div>
   </section>
 
@@ -367,6 +384,16 @@
       <button class="btn-accent" id="btn-modal-save">Save Player</button>
     </div>
   </div>
+</div>
+
+
+<!-- ─── SQUAD PLAN ASSIGNMENT POPOVER ──────────────────────────────────── -->
+<div class="sp-popover hidden" id="sp-popover">
+  <div class="sp-popover-header">
+    <span id="sp-popover-title">Assegna</span>
+    <button class="popover-close" id="sp-popover-close">&times;</button>
+  </div>
+  <div id="sp-popover-list" class="sp-popover-list"></div>
 </div>
 
 

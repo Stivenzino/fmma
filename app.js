@@ -297,6 +297,7 @@ let state = {
   squad:   [],          // Array of player objects
   nodes:   [],          // [{id, x, y, role, playerId}]
   weights: {},          // { attrName: 0.0|0.2|0.6|1.0 }
+  plan:    {},          // { [nodeId]: { starter: id|null, bench: [], third: [], youth: [] } }
   activeNodeId: null,
   nextPlayerId: 1,
   nextNodeId:   1,
@@ -314,6 +315,7 @@ function saveState() {
     squad:           state.squad,
     nodes:           state.nodes,
     weights:         state.weights,
+    plan:            state.plan,
     nextPlayerId:    state.nextPlayerId,
     nextNodeId:      state.nextNodeId,
     autoMode:        state.autoMode,
@@ -330,6 +332,7 @@ function loadState() {
     if (data.squad)                         state.squad            = data.squad;
     if (data.nodes)                         state.nodes            = data.nodes;
     if (data.weights)                       state.weights          = data.weights;
+    if (data.plan)                          state.plan             = data.plan;
     if (data.nextPlayerId)                  state.nextPlayerId     = data.nextPlayerId;
     if (data.nextNodeId)                    state.nextNodeId       = data.nextNodeId;
     if (data.autoMode        !== undefined) state.autoMode         = data.autoMode;
@@ -351,6 +354,7 @@ document.addEventListener('DOMContentLoaded', () => {
   buildAttrInputs('outfield');
 
   bindBenchmarkWidget();
+  bindSpPopover();
 
   const restored = loadState();
   if (!restored) {
@@ -430,9 +434,10 @@ function bindTabs() {
       document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
       btn.classList.add('active');
       document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
-      if (btn.dataset.tab === 'squad')  renderSquadTable();
-      if (btn.dataset.tab === 'market') renderMarket();
-      if (btn.dataset.tab === 'scout')  renderScoutTab();
+      if (btn.dataset.tab === 'squad')       renderSquadTable();
+      if (btn.dataset.tab === 'squad-plan')  renderSquadPlan();
+      if (btn.dataset.tab === 'market')      renderMarket();
+      if (btn.dataset.tab === 'scout')       renderScoutTab();
     });
   });
 }
@@ -463,6 +468,7 @@ function applyFormation(key) {
       playerId: null,
     };
   });
+  cleanOrphanPlan(state.nodes.map(n => n.id));
   renderNodes();
   renderFormationOverview();
   saveState();
@@ -1138,6 +1144,23 @@ function recomputeAutoTarget() {
   const nodes = state.nodes.filter(n => n.role);
   if (nodes.length === 0 || state.squad.length === 0) return;
 
+  // Prefer plan starters as source of truth when plan is configured
+  if (isPlanConfigured()) {
+    const scores = nodes.map(node => {
+      const starterId = state.plan[node.id]?.starter;
+      if (!starterId) return null;
+      const player = state.squad.find(p => p.id === starterId);
+      if (!player) return null;
+      return rawRoleScore(player, node.role);
+    }).filter(s => s !== null);
+    if (scores.length > 0) {
+      state.targetBenchmark = Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
+      updateBenchmarkUI();
+      return;
+    }
+  }
+
+  // Fallback: greedy matching from squad when plan has no starters
   const triples = [];
   nodes.forEach((node, ni) => {
     const zoneKey = getZoneKey(node.x, node.y);
@@ -1161,7 +1184,7 @@ function recomputeAutoTarget() {
     count++;
   }
   if (count > 0) {
-    state.targetBenchmark = Math.round(totalRaw / count);  // rawAttrScore already 0–100%
+    state.targetBenchmark = Math.round(totalRaw / count);
     updateBenchmarkUI();
   }
 }
@@ -2076,64 +2099,59 @@ function refreshStarViews() {
 
 function renderMarket() {
   updateBenchmarkUI();
+  if (!isPlanConfigured()) {
+    renderMarketNoPlan();
+    return;
+  }
   const results = computeMarketData();
   renderMarketPriority(results);
   renderMarketCoverage(results);
 }
 
-/* ── Greedy bipartite matching ───────────────────────────────────────────── */
+function renderMarketNoPlan() {
+  const msg = `<div class="market-noplan-msg">
+    <div class="market-noplan-icon">📋</div>
+    <p><strong>Squad Plan non configurato</strong></p>
+    <p class="muted">Vai alla tab <strong>Squad Plan</strong> e assegna titolari e riserve per ogni ruolo in campo.<br>
+    Solo allora il Market potrà calcolare le priorità di acquisto in modo accurato.</p>
+  </div>`;
+  document.getElementById('market-priority-list').innerHTML  = msg;
+  document.getElementById('market-coverage-list').innerHTML  = msg;
+  document.getElementById('market-priority-count').textContent = '—';
+  document.getElementById('market-coverage-count').textContent = '—';
+}
+
+/* ── Market data from Squad Plan (source of truth) ───────────────────────── */
 function computeMarketData() {
   const nodes = state.nodes.filter(n => n.role);
   if (nodes.length === 0 || state.squad.length === 0) return [];
 
-  // Build all (node-idx, player-id, score) triples — skip incompatible types and fam=0
-  const triples = [];
-  nodes.forEach((node, ni) => {
-    state.squad.forEach(player => {
-      if (player.isScoutTarget) return;
-      if (!isCompatible(player, node.role)) return;
-      const score = scorePlayerForNode(player, node);
-      if (score <= 0) return;
-      triples.push({ ni, playerId: player.id, score });
-    });
-  });
-  triples.sort((a, b) => b.score - a.score);
-
-  // Phase 1 — greedy exclusive starter assignment
-  const usedNodeIdx   = new Set();
-  const usedPlayerIds = new Set();
-  const starterMap    = new Map(); // ni → { player, score }
-
-  for (const { ni, playerId, score } of triples) {
-    if (usedNodeIdx.has(ni) || usedPlayerIds.has(playerId)) continue;
-    usedNodeIdx.add(ni);
-    usedPlayerIds.add(playerId);
-    starterMap.set(ni, { player: state.squad.find(p => p.id === playerId), score });
-  }
-
-  // Phase 2 — best backup from non-starter pool (familiarity ≥ 2 required, non-exclusive)
-  const backupPool = state.squad.filter(p => !usedPlayerIds.has(p.id));
-  const backupMap  = new Map(); // ni → { player, score } | null
-
-  nodes.forEach((node, ni) => {
-    const zoneKey = getZoneKey(node.x, node.y);
-    const best = backupPool
-      .filter(p => isCompatible(p, node.role) && getPlayerFamLevel(p, zoneKey, node.x) >= 1)
-      .map(p => ({ player: p, score: scorePlayerForNode(p, node) }))
-      .sort((a, b) => b.score - a.score)[0] || null;
-    backupMap.set(ni, best);
-  });
-
-  // Dynamic thresholds relative to the active category benchmark
   const starterThreshold = Math.round(state.targetBenchmark * 0.85);
   const backupThreshold  = Math.round(state.targetBenchmark * 0.70);
 
   return nodes.map((node, ni) => {
-    const starter      = starterMap.get(ni) ?? null;
-    const backup       = backupMap.get(ni)  ?? null;
+    const plan = getNodePlan(node.id);
+
+    // Starter from plan
+    const starterPlayer = plan.starter
+      ? state.squad.find(p => p.id === plan.starter && !p.isScoutTarget)
+      : null;
+    const starter = starterPlayer
+      ? { player: starterPlayer, score: rawRoleScore(starterPlayer, node.role) }
+      : null;
+
+    // Best backup: highest rawRoleScore among bench + third + youth
+    const backupIds = [...(plan.bench || []), ...(plan.third || []), ...(plan.youth || [])];
+    const backup = backupIds
+      .map(id => state.squad.find(p => p.id === id && !p.isScoutTarget))
+      .filter(Boolean)
+      .map(p => ({ player: p, score: rawRoleScore(p, node.role) }))
+      .sort((a, b) => b.score - a.score)[0] || null;
+
     const isHighUrgency = !starter || starter.score < starterThreshold;
     const isMedUrgency  = !backup  || backup.score  < backupThreshold;
     const urgency = isHighUrgency ? 'high' : isMedUrgency ? 'med' : 'low';
+
     return { node, ni, starter, backup, urgency, starterThreshold, backupThreshold };
   });
 }
@@ -2575,6 +2593,249 @@ function attrGroupAvg(player, group) {
   const attrs = src[group] || [];
   if (!attrs.length) return 0;
   return attrs.reduce((sum, a) => sum + (player.attrs?.[a] || 0), 0) / attrs.length;
+}
+
+/* ─── SQUAD PLAN ─────────────────────────────────────────────────────────── */
+
+const SP_TIERS = [
+  { key: 'starter', label: 'Titolare',     max: 1,    color: '#39ff14' },
+  { key: 'bench',   label: 'Panchina',     max: null, color: '#00e5ff' },
+  { key: 'third',   label: 'Terza Fascia', max: null, color: '#ffdf00' },
+  { key: 'youth',   label: 'Giovani',      max: null, color: '#ff9500' },
+];
+
+const SP_ZONE_ORDER = ['GK','DEF_C','DEF_W','DM_C','DM_W','CM_C','CM_W','AM_C','AM_W','ATT_C','ATT_W'];
+
+let _spPopoverState = null; // { nodeId, tier }
+
+/* ── Plan helpers ─────────────────────────────────────────────────────────── */
+
+function getNodePlan(nodeId) {
+  if (!state.plan[nodeId]) {
+    state.plan[nodeId] = { starter: null, bench: [], third: [], youth: [] };
+  }
+  return state.plan[nodeId];
+}
+
+function isPlanConfigured() {
+  return Object.values(state.plan).some(p => p && p.starter !== null);
+}
+
+function findPlayerAsStarter(playerId) {
+  for (const [nid, plan] of Object.entries(state.plan)) {
+    if (plan && plan.starter === playerId) return parseInt(nid);
+  }
+  return null;
+}
+
+function playerTierOnNode(nodeId, playerId) {
+  const plan = state.plan[nodeId];
+  if (!plan) return null;
+  if (plan.starter === playerId)          return 'starter';
+  if (plan.bench?.includes(playerId))     return 'bench';
+  if (plan.third?.includes(playerId))     return 'third';
+  if (plan.youth?.includes(playerId))     return 'youth';
+  return null;
+}
+
+function cleanOrphanPlan(validNodeIds) {
+  const validSet = new Set(validNodeIds.map(Number));
+  Object.keys(state.plan).forEach(nid => {
+    if (!validSet.has(parseInt(nid))) delete state.plan[nid];
+  });
+}
+
+// Returns null if assignment is allowed, or an error string if blocked
+function canAssignToTier(nodeId, tier, playerId) {
+  // Already in this exact slot
+  if (playerTierOnNode(nodeId, playerId) === tier) return 'Giocatore già in questa fascia.';
+  // Already in another tier of this same node
+  if (playerTierOnNode(nodeId, playerId) !== null)  return 'Già assegnato in un\'altra fascia di questo ruolo.';
+  // Titolare anywhere → locked to that node only
+  const starterNode = findPlayerAsStarter(playerId);
+  if (starterNode !== null) {
+    const node = state.nodes.find(n => n.id === starterNode);
+    return `Titolare di ${node?.role || 'altro ruolo'}. Rimuovilo prima.`;
+  }
+  // Trying to add as starter but player is already bench/third/youth elsewhere — allowed
+  // (only starter→other-node is blocked, bench can multi-assign freely)
+  return null;
+}
+
+function assignToPlan(nodeId, tier, playerId) {
+  const plan = getNodePlan(nodeId);
+  if (tier === 'starter') {
+    plan.starter = playerId;
+  } else {
+    if (!plan[tier]) plan[tier] = [];
+    if (!plan[tier].includes(playerId)) plan[tier].push(playerId);
+  }
+}
+
+function removeFromPlanTier(nodeId, tier, playerId) {
+  const plan = state.plan[nodeId];
+  if (!plan) return;
+  if (tier === 'starter') {
+    if (plan.starter === playerId) plan.starter = null;
+  } else {
+    if (plan[tier]) plan[tier] = plan[tier].filter(id => id !== playerId);
+  }
+}
+
+/* ── Squad Plan render ────────────────────────────────────────────────────── */
+
+function renderSquadPlan() {
+  const container = document.getElementById('sp-node-grid');
+  if (!container) return;
+
+  const nodes = state.nodes.filter(n => n.role);
+  if (nodes.length === 0) {
+    container.innerHTML = '<p class="muted sp-empty">Nessun ruolo configurato nel Tactical Pitch.<br>Imposta la formazione e assegna i ruoli ai nodi prima di pianificare la rosa.</p>';
+    return;
+  }
+
+  const sorted = [...nodes].sort((a, b) => {
+    const za = getZoneKey(a.x, a.y), zb = getZoneKey(b.x, b.y);
+    const ia = SP_ZONE_ORDER.indexOf(za), ib = SP_ZONE_ORDER.indexOf(zb);
+    return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || a.x - b.x;
+  });
+
+  container.innerHTML = sorted.map(node => renderSpCard(node)).join('');
+  bindSpCards();
+}
+
+function renderSpCard(node) {
+  const plan     = getNodePlan(node.id);
+  const zoneKey  = getZoneKey(node.x, node.y);
+  const zoneLabel = ZONE_ROLES[zoneKey]?.label || zoneKey;
+
+  const tiersHtml = SP_TIERS.map(({ key, label, max, color }) => {
+    const currentIds = key === 'starter'
+      ? (plan.starter != null ? [plan.starter] : [])
+      : (plan[key] || []);
+
+    const chips = currentIds.map(pid => {
+      const player = state.squad.find(p => p.id === pid);
+      if (!player) return '';
+      const score = rawRoleScore(player, node.role);
+      const scoreColor = score >= 70 ? '#39ff14' : score >= 50 ? '#00e5ff' : '#aaa';
+      return `<div class="sp-player-chip">
+        <span class="sp-chip-score" style="color:${scoreColor}">${score}%</span>
+        <span class="sp-chip-name">${truncate(player.name, 15)}</span>
+        <button class="sp-chip-remove" data-node="${node.id}" data-tier="${key}" data-pid="${pid}" title="Rimuovi">×</button>
+      </div>`;
+    }).join('');
+
+    const canAdd = max === null || currentIds.length < max;
+    const addBtn = canAdd
+      ? `<button class="sp-add-btn" data-node="${node.id}" data-tier="${key}" style="--tier-color:${color}">+ ${label}</button>`
+      : '';
+
+    return `<div class="sp-tier" data-tier="${key}">
+      <div class="sp-tier-label" style="color:${color}">${label}</div>
+      <div class="sp-tier-content">${chips}${addBtn}</div>
+    </div>`;
+  }).join('');
+
+  return `<div class="sp-card" data-node-id="${node.id}">
+    <div class="sp-card-head">
+      <span class="sp-role-badge">${shortRole(node.role)}</span>
+      <div class="sp-card-info">
+        <span class="sp-role-name">${node.role}</span>
+        <span class="sp-zone-label">${zoneLabel}</span>
+      </div>
+    </div>
+    ${tiersHtml}
+  </div>`;
+}
+
+function bindSpCards() {
+  document.querySelectorAll('.sp-chip-remove').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      removeFromPlanTier(parseInt(btn.dataset.node), btn.dataset.tier, parseInt(btn.dataset.pid));
+      saveState();
+      maybeRenderMarket();
+      renderSquadPlan();
+    });
+  });
+
+  document.querySelectorAll('.sp-add-btn').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      openSpPopover(parseInt(btn.dataset.node), btn.dataset.tier, btn);
+    });
+  });
+}
+
+/* ── Squad Plan assignment popover ────────────────────────────────────────── */
+
+function openSpPopover(nodeId, tier, anchorEl) {
+  _spPopoverState = { nodeId, tier };
+  const node = state.nodes.find(n => n.id === nodeId);
+  if (!node) return;
+
+  const popover = document.getElementById('sp-popover');
+  const title   = document.getElementById('sp-popover-title');
+  const list    = document.getElementById('sp-popover-list');
+
+  const tierMeta = SP_TIERS.find(t => t.key === tier);
+  title.textContent = `${tierMeta?.label || tier} — ${node.role}`;
+
+  const candidates = state.squad
+    .filter(p => !p.isScoutTarget && isCompatible(p, node.role))
+    .map(p => ({
+      player: p,
+      score:  rawRoleScore(p, node.role),
+      reason: canAssignToTier(nodeId, tier, p.id),
+    }))
+    .sort((a, b) => (a.reason ? 1 : 0) - (b.reason ? 1 : 0) || b.score - a.score);
+
+  list.innerHTML = candidates.length === 0
+    ? '<p class="muted" style="padding:12px 16px">Nessun giocatore compatibile disponibile.</p>'
+    : candidates.map(({ player, score, reason }) => {
+        const scoreColor = score >= 70 ? '#39ff14' : score >= 50 ? '#00e5ff' : '#aaa';
+        return `<div class="sp-popover-item${reason ? ' sp-pop-disabled' : ''}" data-pid="${player.id}">
+          <span class="sp-pop-score" style="color:${scoreColor}">${score}%</span>
+          <div class="sp-pop-info">
+            <span class="sp-pop-name">${player.name}</span>
+            ${reason ? `<span class="sp-pop-reason">${reason}</span>` : ''}
+          </div>
+        </div>`;
+      }).join('');
+
+  // Bind clicks only on eligible items
+  list.querySelectorAll('.sp-popover-item:not(.sp-pop-disabled)').forEach(item => {
+    item.addEventListener('click', () => {
+      assignToPlan(nodeId, tier, parseInt(item.dataset.pid));
+      saveState();
+      maybeRenderMarket();
+      renderSquadPlan();
+      closeSpPopover();
+    });
+  });
+
+  // Position near the button
+  const rect = anchorEl.getBoundingClientRect();
+  const top  = rect.bottom + window.scrollY + 4;
+  const left = Math.min(rect.left + window.scrollX, window.innerWidth - 300);
+  popover.style.top  = top  + 'px';
+  popover.style.left = left + 'px';
+  popover.classList.remove('hidden');
+}
+
+function closeSpPopover() {
+  document.getElementById('sp-popover')?.classList.add('hidden');
+  _spPopoverState = null;
+}
+
+function bindSpPopover() {
+  document.getElementById('sp-popover-close')?.addEventListener('click', closeSpPopover);
+  document.addEventListener('click', e => {
+    const popover = document.getElementById('sp-popover');
+    if (!popover || popover.classList.contains('hidden')) return;
+    if (!popover.contains(e.target) && !e.target.closest('.sp-add-btn')) closeSpPopover();
+  });
 }
 
 /* ─── MASTERPLAN UPDATE ─────────────────────────────────────────────────── */

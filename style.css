@@ -2487,3 +2487,272 @@ html, body {
 .td-role-stars .best-role-chip {
   margin-right: 4px;
 }
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SQUAD PLAN
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Page shell */
+.sp-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 20px 24px;
+  overflow-y: auto;
+  gap: 20px;
+}
+
+.sp-page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.sp-page-header h2 {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+.sp-header-hint {
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+/* Empty state */
+.sp-empty {
+  text-align: center;
+  padding: 48px 24px;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+/* Node grid */
+.sp-node-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 14px;
+  align-content: start;
+}
+
+/* Node card */
+.sp-card {
+  background: var(--bg-glass2);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 10px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: border-color 0.2s;
+}
+.sp-card:hover {
+  border-color: rgba(0,242,254,0.2);
+}
+
+/* Card header */
+.sp-card-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.sp-role-badge {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--bg-deep);
+  background: var(--cyan);
+  border-radius: 5px;
+  padding: 2px 7px;
+  flex-shrink: 0;
+  letter-spacing: 0.5px;
+}
+.sp-card-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.sp-role-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sp-zone-label {
+  font-size: 10px;
+  color: var(--text-muted);
+  letter-spacing: 0.5px;
+}
+
+/* Tier block */
+.sp-tier {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.sp-tier-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+.sp-tier-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* Player chip */
+.sp-player-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255,255,255,0.05);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 12px;
+}
+.sp-chip-score {
+  font-size: 11px;
+  font-weight: 700;
+  width: 32px;
+  flex-shrink: 0;
+  text-align: right;
+}
+.sp-chip-name {
+  flex: 1;
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sp-chip-remove {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0 2px;
+  flex-shrink: 0;
+  transition: color 0.15s;
+}
+.sp-chip-remove:hover { color: #ff4444; }
+
+/* Add button */
+.sp-add-btn {
+  background: none;
+  border: 1px dashed var(--tier-color, rgba(255,255,255,0.2));
+  color: var(--tier-color, var(--text-muted));
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s, opacity 0.15s;
+  opacity: 0.7;
+}
+.sp-add-btn:hover {
+  background: rgba(255,255,255,0.04);
+  opacity: 1;
+}
+
+/* Squad Plan assignment popover */
+.sp-popover {
+  position: fixed;
+  z-index: 2000;
+  width: 300px;
+  max-height: 380px;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-glass2);
+  border: 1px solid rgba(0,242,254,0.3);
+  border-radius: 10px;
+  backdrop-filter: blur(16px);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+  overflow: hidden;
+}
+.sp-popover-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--cyan);
+  flex-shrink: 0;
+}
+.sp-popover-list {
+  overflow-y: auto;
+  flex: 1;
+}
+.sp-popover-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.sp-popover-item:hover:not(.sp-pop-disabled) {
+  background: rgba(0,242,254,0.07);
+}
+.sp-pop-disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.sp-pop-score {
+  font-size: 11px;
+  font-weight: 700;
+  width: 32px;
+  text-align: right;
+  flex-shrink: 0;
+}
+.sp-pop-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.sp-pop-name {
+  font-size: 13px;
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sp-pop-reason {
+  font-size: 10px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Market no-plan message */
+.market-noplan-msg {
+  padding: 32px 20px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
+}
+.market-noplan-icon {
+  font-size: 32px;
+  margin-bottom: 4px;
+}
+.market-noplan-msg strong {
+  font-size: 14px;
+  color: var(--text-main);
+}
+.market-noplan-msg .muted {
+  font-size: 12px;
+  line-height: 1.6;
+}
