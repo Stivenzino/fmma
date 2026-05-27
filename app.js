@@ -1045,7 +1045,8 @@ const FAM_PENALTY = [50, 35, 20, 10, 3, 0];
 /* Non-linear quality curve: maps raw FM attribute (1–20) to realistic quality % (1–100).
    Low attributes drop off sharply — a player averaging 10/20 scores ~30%, not 50%. */
 function convertAttributeToQuality(val) {
-  if (val <= 1)   return 1;
+  if (val <= 0)   return 0;
+  if (val === 1)  return 1;
   if (val === 2)  return 2;
   if (val === 3)  return 3;
   if (val === 4)  return 4;

@@ -283,6 +283,15 @@
   * **File modificati:** `index.html`, `style.css`, `app.js`
   * **Cosa è stato fatto:** Rimosso il div `formation-overview` dall'HTML. `renderFormationOverview()` ora è uno stub che chiama solo `renderBench()` — tutti i call site esistenti continuano a funzionare senza modifiche. CSS `.formation-overview`, `.overview-slots`, `.overview-slot`, `.ov-*` rimossi.
 
+* **2026-05-27 — Fix convertAttributeToQuality(0) + analisi incoerenze ROLE_ATTRS**
+  * **File modificati:** `app.js`
+  * **Cosa è stato fatto:**
+    - Aggiunto guard `if (val <= 0) return 0;` come primo check in `convertAttributeToQuality`. Prima, un attributo non impostato (valore undefined → 0) restituiva 1% invece di 0%, contribuendo silenziosamente al punteggio.
+    - Analisi completa incoerenze: tutti i 35 ruoli in ROLE_ATTRS hanno attributi validi e corrispondenti alle pool ATTRS_GK/ATTRS_OUTFIELD. Nessun typo, nessun mismatch.
+    - `Leadership` confermato come attributo deliberatamente tracciato ma non assegnato a nessun ruolo (scelta intenzionale).
+    - Poacher vs Advanced Forward: KEY+IMP identici, solo SEC diversi — comportamento atteso da database FM Mobile.
+  * **Implicazioni:** Giocatori con attributi non compilati ora scorano correttamente 0 su quegli attributi invece di 1.
+
 ## 2. In Corso / Da Fare Immediatamente
 
 * [ ] Test funzionale end-to-end
