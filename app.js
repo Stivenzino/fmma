@@ -2695,6 +2695,13 @@ function canAssignToTier(nodeId, tier, playerId) {
     const node = state.nodes.find(n => n.id === starterNode);
     return `Starter for ${node?.role || 'another role'}. Remove first.`;
   }
+  // Youth tier age gate: U23 only (soft block — visible but not clickable)
+  if (tier === 'youth') {
+    const player = state.squad.find(p => p.id === playerId);
+    if (player?.age && player.age > 23) {
+      return `Over 23 — not eligible for Youth tier`;
+    }
+  }
   // Trying to add as starter but player is already bench/third/youth elsewhere — allowed
   // (only starter→other-node is blocked, bench can multi-assign freely)
   return null;
@@ -2842,11 +2849,17 @@ function renderSpPanel(node) {
       const sNode = state.nodes.find(n => n.id === starterNodeId);
       actionHTML = `<span class="sp-candidate-blocked" title="Starter for ${sNode?.role || 'another role'}">🔒</span>`;
     } else {
+      const overAgeForYouth = t => t.key === 'youth' && player.age && player.age > 23;
       const tierBtns = SP_TIERS.map(t => {
-        const disabled = t.key === 'starter' && starterSlotFull;
+        let disabled = false, disabledReason = '';
+        if (t.key === 'starter' && starterSlotFull) {
+          disabled = true; disabledReason = 'Starter slot full';
+        } else if (overAgeForYouth(t)) {
+          disabled = true; disabledReason = 'Over 23 — Youth tier is U23 only';
+        }
         return `<button class="sp-tier-btn${disabled ? ' sp-tier-btn--disabled' : ''}"
           data-tier="${t.key}" data-pid="${player.id}"
-          title="${t.label}${disabled ? ' — starter slot full' : ''}"
+          title="${t.label}${disabled ? ` — ${disabledReason}` : ''}"
           style="--tier-color:${t.color}"
           ${disabled ? 'disabled' : ''}>${SP_TIER_BTN_LABEL[t.key]}</button>`;
       }).join('');
