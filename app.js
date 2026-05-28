@@ -341,6 +341,7 @@ function loadState() {
     if (data.targetBenchmark !== undefined) state.targetBenchmark  = data.targetBenchmark <= 20 ? data.targetBenchmark * 5 : data.targetBenchmark;
     if (data.youthAgeLimit   !== undefined) state.youthAgeLimit    = data.youthAgeLimit;
     cleanOrphanPlan(state.nodes.map(n => n.id));
+    cleanOrphanPlanPlayers();
     return true;
   } catch (_) { return false; }
 }
@@ -1600,12 +1601,7 @@ document.getElementById('btn-add-scout-target').addEventListener('click', () => 
 function deletePlayer(id) {
   state.squad = state.squad.filter(p => p.id !== id);
   state.nodes.forEach(n => { if (n.playerId === id) n.playerId = null; });
-  Object.values(state.plan).forEach(entry => {
-    if (entry.starter === id) entry.starter = null;
-    entry.bench = entry.bench.filter(x => x !== id);
-    entry.third = entry.third.filter(x => x !== id);
-    entry.youth = entry.youth.filter(x => x !== id);
-  });
+  cleanOrphanPlanPlayers();
   if (_selectedScoutId === id) { _selectedScoutId = null; _scoutNodeId = null; _scoutCompareId = null; }
   saveState();
   maybeRenderMarket();
@@ -2732,6 +2728,16 @@ function cleanOrphanPlan(validNodeIds) {
   const validSet = new Set(validNodeIds.map(Number));
   Object.keys(state.plan).forEach(nid => {
     if (!validSet.has(parseInt(nid))) delete state.plan[nid];
+  });
+}
+
+function cleanOrphanPlanPlayers() {
+  const validIds = new Set(state.squad.map(p => p.id));
+  Object.values(state.plan).forEach(entry => {
+    if (entry.starter !== null && !validIds.has(entry.starter)) entry.starter = null;
+    entry.bench = (entry.bench || []).filter(id => validIds.has(id));
+    entry.third = (entry.third || []).filter(id => validIds.has(id));
+    entry.youth = (entry.youth || []).filter(id => validIds.has(id));
   });
 }
 
