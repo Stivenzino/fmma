@@ -1894,7 +1894,7 @@ function renderModalRoleSuggestions() {
     .map(role => {
       const raw = rawRoleScore(tmpPlayer, role);
       const fam = roleMaxFam.get(role) ?? 0;
-      const score = hasAnyFam ? Math.round(raw * FAM_MULTIPLIER[fam]) : raw;
+      const score = hasAnyFam ? Math.max(0, Math.round(raw - FAM_PENALTY[fam])) : raw;
       return { role, score };
     })
     .filter(({ score }) => score > 0)
