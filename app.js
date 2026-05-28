@@ -1545,10 +1545,14 @@ function getBestTacticalRole(player) {
     const famLevel = player.positions[posKey] || 0;
     if (famLevel === 0) return;
     const zoneKey = cell.key.replace(/_[LR]$/, '');
-    (ZONE_ROLES[zoneKey]?.roles || []).forEach(role => {
-      if (!isCompatible(player, role)) return;
-      const cur = roleMaxFam.get(role) ?? 0;
-      if (famLevel > cur) roleMaxFam.set(role, famLevel);
+    const zonesToCheck = [zoneKey];
+    if (zoneKey === 'AM_W') zonesToCheck.push('ATT_W'); // LW/RW fam covers ATT wide roles
+    zonesToCheck.forEach(zk => {
+      (ZONE_ROLES[zk]?.roles || []).forEach(role => {
+        if (!isCompatible(player, role)) return;
+        const cur = roleMaxFam.get(role) ?? 0;
+        if (famLevel > cur) roleMaxFam.set(role, famLevel);
+      });
     });
   });
 
