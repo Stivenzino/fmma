@@ -1544,7 +1544,8 @@ function getBestTacticalRole(player) {
     const posKey   = `${cell.key}_${cell.r}_${cell.c}`;
     const famLevel = player.positions[posKey] || 0;
     if (famLevel === 0) return;
-    (ZONE_ROLES[cell.key]?.roles || []).forEach(role => {
+    const zoneKey = cell.key.replace(/_[LR]$/, '');
+    (ZONE_ROLES[zoneKey]?.roles || []).forEach(role => {
       if (!isCompatible(player, role)) return;
       const cur = roleMaxFam.get(role) ?? 0;
       if (famLevel > cur) roleMaxFam.set(role, famLevel);
@@ -1867,23 +1868,31 @@ function renderModalRoleSuggestions() {
   const type      = getActiveType();
   const tmpPlayer = { type, attrs: getAttrValues() };
 
-  // Zones where player has any familiarity (level ≥ 1) in the mini-pitch
-  const selectedKeys = new Set();
+  // Build role → max famLevel from mini-pitch cells (same logic as getBestTacticalRole)
+  const roleMaxFam = new Map();
+  let hasAnyFam = false;
   document.querySelectorAll('.mini-cell').forEach(cell => {
     if (cell.style.visibility === 'hidden') return;
-    if (parseInt(cell.dataset.level) >= 1) selectedKeys.add(cell.dataset.key);
+    const famLevel = parseInt(cell.dataset.level) || 0;
+    if (famLevel === 0) return;
+    hasAnyFam = true;
+    const zoneKey = cell.dataset.key.replace(/_[LR]$/, '');
+    (ZONE_ROLES[zoneKey]?.roles || []).forEach(role => {
+      if (!isCompatible(tmpPlayer, role)) return;
+      const cur = roleMaxFam.get(role) ?? 0;
+      if (famLevel > cur) roleMaxFam.set(role, famLevel);
+    });
   });
 
-  // Roles to score: from selected zones, or all zones if none picked
-  const keysToCheck = selectedKeys.size > 0
-    ? [...new Set([...selectedKeys].map(k => k.replace(/_[LR]$/, '')))]
-    : Object.keys(ZONE_ROLES);
-  const roleSet = new Set();
-  keysToCheck.forEach(key => (ZONE_ROLES[key]?.roles || []).forEach(r => roleSet.add(r)));
-
-  const scored = [...roleSet]
+  // Score: rawRoleScore weighted by familiarity. If no positions set, show all compatible roles unweighted.
+  const scored = (hasAnyFam ? [...roleMaxFam.keys()] : Object.values(ZONE_ROLES).flatMap(z => z.roles))
     .filter(role => isCompatible(tmpPlayer, role))
-    .map(role => ({ role, score: rawRoleScore(tmpPlayer, role) }))
+    .map(role => {
+      const raw = rawRoleScore(tmpPlayer, role);
+      const fam = roleMaxFam.get(role) ?? 0;
+      const score = hasAnyFam ? Math.round(raw * FAM_MULTIPLIER[fam]) : raw;
+      return { role, score };
+    })
     .filter(({ score }) => score > 0)
     .sort((a, b) => b.score - a.score)
     .slice(0, 8);
@@ -1893,8 +1902,8 @@ function renderModalRoleSuggestions() {
     return;
   }
 
-  const subtitle = selectedKeys.size > 0
-    ? `${selectedKeys.size} zone${selectedKeys.size > 1 ? 's' : ''} selected`
+  const subtitle = hasAnyFam
+    ? `${roleMaxFam.size} eligible role${roleMaxFam.size !== 1 ? 's' : ''} · fam-weighted`
     : 'all compatible roles';
 
   const chips = scored.map(({ role, score }) => {
