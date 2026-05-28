@@ -1600,6 +1600,12 @@ document.getElementById('btn-add-scout-target').addEventListener('click', () => 
 function deletePlayer(id) {
   state.squad = state.squad.filter(p => p.id !== id);
   state.nodes.forEach(n => { if (n.playerId === id) n.playerId = null; });
+  Object.values(state.plan).forEach(entry => {
+    if (entry.starter === id) entry.starter = null;
+    entry.bench = entry.bench.filter(x => x !== id);
+    entry.third = entry.third.filter(x => x !== id);
+    entry.youth = entry.youth.filter(x => x !== id);
+  });
   if (_selectedScoutId === id) { _selectedScoutId = null; _scoutNodeId = null; _scoutCompareId = null; }
   saveState();
   maybeRenderMarket();
@@ -1607,6 +1613,7 @@ function deletePlayer(id) {
   renderSquadRoster();
   renderSquadTable();
   renderFormationOverview();
+  renderSquadPlan();
   renderScoutTab();
 }
 

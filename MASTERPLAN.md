@@ -365,6 +365,11 @@
 * [ ] Test funzionale end-to-end
 * **Dipendenze/Rischi:** Nessuna dipendenza esterna.
 
+* **2026-05-28 — Fix: deletePlayer non puliva state.plan**
+  * **File modificati:** `app.js`
+  * **Cosa è stato fatto:** Aggiunta pulizia di `state.plan` in `deletePlayer`: `starter` azzerato se coincide con l'id eliminato, filtro su `bench`/`third`/`youth`. Aggiunta chiamata `renderSquadPlan()` tra i re-render post-delete.
+  * **Implicazioni:** Eliminando un giocatore, il suo slot nel Squad Plan viene liberato correttamente e il pannello si aggiorna immediatamente.
+
 * **2026-05-26 — Formation Overview Bar + Squad table refactor**
   * **File modificati:** `index.html`, `style.css`, `app.js`
   * **Cosa è stato fatto:**
