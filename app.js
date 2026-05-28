@@ -1862,7 +1862,9 @@ function renderModalRoleSuggestions() {
   });
 
   // Roles to score: from selected zones, or all zones if none picked
-  const keysToCheck = selectedKeys.size > 0 ? [...selectedKeys] : Object.keys(ZONE_ROLES);
+  const keysToCheck = selectedKeys.size > 0
+    ? [...new Set([...selectedKeys].map(k => k.replace(/_[LR]$/, '')))]
+    : Object.keys(ZONE_ROLES);
   const roleSet = new Set();
   keysToCheck.forEach(key => (ZONE_ROLES[key]?.roles || []).forEach(r => roleSet.add(r)));
 
