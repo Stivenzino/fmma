@@ -1597,6 +1597,19 @@ document.getElementById('squad-filter-name').addEventListener('input', renderSqu
 document.getElementById('squad-filter-pos').addEventListener('change', renderSquadTable);
 document.getElementById('btn-add-player-squad').addEventListener('click', () => openModal(null));
 document.getElementById('btn-add-scout-target').addEventListener('click', () => openModal(null, true));
+document.getElementById('btn-repair-data').addEventListener('click', () => {
+  cleanOrphanPlan(state.nodes.map(n => n.id));
+  cleanOrphanPlanPlayers();
+  saveState();
+  renderNodes();
+  renderSquadRoster();
+  renderSquadTable();
+  renderFormationOverview();
+  renderSquadPlan();
+  maybeRenderMarket();
+  renderScoutTab();
+  alert('Data repaired. All views have been refreshed.');
+});
 
 function deletePlayer(id) {
   state.squad = state.squad.filter(p => p.id !== id);
