@@ -2520,24 +2520,27 @@ function renderScoutComparison(target) {
   const selectedNodeId = (_scoutNodeId !== null && compatibleOpts.find(o => o.node.id === _scoutNodeId))
     ? _scoutNodeId : defaultScoutNodeId(compatibleOpts);
 
+  const posLabel = node => node.x < 35 ? 'Left' : node.x > 65 ? 'Right' : 'Centre';
+  const nodeLabel = o => {
+    const zone = ZONE_ROLES[getZoneKey(o.node.x, o.node.y)]?.label || o.node.role;
+    return `${o.node.role} (${zone} · ${posLabel(o.node)}) — ${o.score}%`;
+  };
+
   let nodeSelectorHTML = '';
   if (compatibleOpts.length > 1) {
-    const opts = compatibleOpts.map(o => {
-      const zone = ZONE_ROLES[getZoneKey(o.node.x, o.node.y)]?.label || o.node.role;
-      return `<option value="${o.node.id}" ${o.node.id === selectedNodeId ? 'selected' : ''}>${o.node.role} (${zone}) — ${o.score}%</option>`;
-    }).join('');
+    const opts = compatibleOpts.map(o =>
+      `<option value="${o.node.id}" ${o.node.id === selectedNodeId ? 'selected' : ''}>${nodeLabel(o)}</option>`
+    ).join('');
     nodeSelectorHTML = `
       <div class="scout-section">
         <span class="scout-section-label">Analyzed role</span>
         <select id="scout-node-select" class="fmm-select">${opts}</select>
       </div>`;
   } else if (compatibleOpts.length === 1) {
-    const o = compatibleOpts[0];
-    const zone = ZONE_ROLES[getZoneKey(o.node.x, o.node.y)]?.label || o.node.role;
     nodeSelectorHTML = `
       <div class="scout-section">
         <span class="scout-section-label">Analyzed role</span>
-        <div class="fmm-input" style="opacity:0.7">${o.node.role} (${zone}) — ${o.score}%</div>
+        <div class="fmm-input" style="opacity:0.7">${nodeLabel(compatibleOpts[0])}</div>
       </div>`;
   }
 
